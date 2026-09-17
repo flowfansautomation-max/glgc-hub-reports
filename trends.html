@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GLGC Hub Reports — Trends</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css?v=3">
+  <script src="config.js?v=3"></script><script src="roster.js?v=3"></script><script src="data.js?v=3"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top"><div class="nav">
+      <a href="index.html">Weekly Summary</a>
+      <a href="hub.html">Per Hub</a>
+      <a href="trends.html" class="active">Trends</a>
+    </div></div>
+    <div class="title">Trends — All Hubs Combined</div>
+    <div class="sub">Every weekend so far, all 10 hub centers added together</div>
+    <div id="status"></div>
+
+    <div class="section-label">📊 Rehearsal vs Sunday attendance</div>
+    <div class="legend"><span><i class="sw" style="background:var(--blue)"></i> Rehearsal</span><span><i class="sw" style="background:var(--sun)"></i> Sunday</span></div>
+    <div class="chartscroll"><div class="chartinner"><canvas id="c1"></canvas></div></div>
+
+    <div class="section-label">💰 Rehearsal offering (GHS)</div>
+    <div class="chartscroll"><div class="chartinner"><canvas id="c2"></canvas></div></div>
+
+    <div class="section-label">🌍 Outreach</div>
+    <div class="legend"><span><i class="sw" style="background:var(--green)"></i> Went out</span><span><i class="sw" style="background:var(--red)"></i> Souls won</span></div>
+    <div class="chartscroll"><div class="chartinner"><canvas id="c3"></canvas></div></div>
+
+    <div class="section-label">✅ Reporting rate — hubs that reported (out of 10)</div>
+    <div class="legend"><span><i class="sw" style="background:var(--blue)"></i> Rehearsal</span><span><i class="sw" style="background:var(--green)"></i> Outreach</span><span><i class="sw" style="background:var(--sun)"></i> Sunday</span></div>
+    <div class="chartscroll"><div class="chartinner"><canvas id="c4"></canvas></div></div>
+
+    <div class="section-label">🏅 Reporting league — weekends reported per hub</div>
+    <div class="chartscroll"><table id="tbl">
+      <thead><tr><th>Hub Center</th><th class="num">Rehearsal</th><th class="num">Outreach</th><th class="num">Sunday</th><th class="num">Missed reports</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <footer>Totals only include hubs that reported that weekend</footer>
+  </div>
+<script>
+function chart(id, labels, datasets, max) {
+  new Chart(document.getElementById(id), { type:'bar', plugins:[GLGC.valueLabels], data:{ labels:labels, datasets:datasets },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} },
+      scales:{ x:{ ticks:{color:'#ddd',font:{size:11}}, grid:{color:'#1a1a1a'} },
+               y:{ beginAtZero:true, grace:'14%', suggestedMax:max, ticks:{color:'#ddd',precision:0}, grid:{color:'#1e1e1e'} } } } });
+}
+function ds(label, data, color) { return { label:label, data:data, backgroundColor:color, borderRadius:4, maxBarThickness:40 }; }
+
+GLGC.load(function (M) {
+  GLGC.banner(M);
+  if (!M.weeks.length) { document.getElementById('status').innerHTML = '<div class="empty">No reports submitted yet.</div>'; return; }
+  var W = M.weeks, n = M.hubs.length;
+  var labels = W.map(function (w) { return ['WK ' + w.wk, w.label.replace(/ \d{4}$/, '')]; });
+  function tot(t, f) { return W.map(function (w) { return M.total(t, w.key, f); }); }
+  function rate(t) { return W.map(function (w) { return n - M.defaulters(t, w.key).length; }); }
+  chart('c1', labels, [ ds('Rehearsal', tot('rehearsal','attendance'), '#1f5fff'), ds('Sunday', tot('sunday','attendance'), '#f5c518') ]);
+  chart('c2', labels, [ ds('Offering', tot('rehearsal','offering'), '#e6c878') ]);
+  chart('c3', labels, [ ds('Went out', tot('outreach','members'), '#35c27a'), ds('Souls', tot('outreach','souls'), '#e2574c') ]);
+  chart('c4', labels, [ ds('Rehearsal', rate('rehearsal'), '#1f5fff'), ds('Outreach', rate('outreach'), '#35c27a'), ds('Sunday', rate('sunday'), '#f5c518') ], n);
+
+  var rows = M.hubs.map(function (h, i) {
+    function c(t) { return W.filter(function (w) { return M.get(t, w.key, h.hub); }).length; }
+    var r = c('rehearsal'), o = c('outreach'), s = c('sunday');
+    return { h:h, i:i, r:r, o:o, s:s, miss: W.length * 3 - r - o - s };
+  }).sort(function (a, b) { return a.miss - b.miss; });
+  document.querySelector('#tbl tbody').innerHTML = rows.map(function (x) {
+    return '<tr><td><a class="photo gname" style="text-decoration:none" href="hub.html?hub='+x.i+'">'+x.h.hub+'</a><div class="gsub">'+x.h.governors.join(', ')+'</div></td>'+
+      '<td class="num b">'+x.r+' / '+W.length+'</td><td class="num g">'+x.o+' / '+W.length+'</td><td class="num s">'+x.s+' / '+W.length+'</td>'+
+      '<td class="num '+(x.miss ? 'd' : 'g')+'">'+x.miss+'</td></tr>'; }).join('');
+}, GLGC.fail);
+</script>
+</body>
+</html>

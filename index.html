@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GLGC Hub Reports — Weekly Summary</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css?v=3">
+  <script src="config.js?v=3"></script><script src="roster.js?v=3"></script><script src="data.js?v=3"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top"><div class="nav">
+      <a href="index.html" class="active">Weekly Summary</a>
+      <a href="hub.html">Per Hub</a>
+      <a href="trends.html">Trends</a>
+    </div></div>
+    <div class="title">Hub Centers — Weekly Summary</div>
+    <div class="sub">Rehearsal · Outreach · Sunday — reported by governors</div>
+    <div class="controls"><label>Weekend<select id="week"></select></label></div>
+    <div id="status"></div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="section-label">🚨 Defaulters — hubs that did not report</div>
+    <div class="defs" id="defs"></div>
+
+    <div class="section-label">📊 Rehearsal vs Sunday — by hub</div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--blue)"></i> Rehearsal attendance</span>
+      <span><i class="sw" style="background:var(--sun)"></i> Sunday attendance</span>
+    </div>
+    <div class="chartscroll"><div class="chartinner wide"><canvas id="c1"></canvas></div></div>
+
+    <div class="section-label">🌍 Outreach — by hub</div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--green)"></i> Members who went out</span>
+      <span><i class="sw" style="background:var(--red)"></i> Souls won</span>
+    </div>
+    <div class="chartscroll"><div class="chartinner wide"><canvas id="c2"></canvas></div></div>
+
+    <div class="section-label">🧾 All numbers by hub</div>
+    <div class="chartscroll"><table id="tbl">
+      <thead><tr><th>Hub Center</th><th class="num">Rehearsal</th><th class="num">Offering (GHS)</th><th class="num">Sunday</th>
+        <th class="num">Went out</th><th class="num">Souls won</th></tr></thead>
+      <tbody></tbody><tfoot></tfoot>
+    </table></div>
+
+    <footer>A weekend = Saturday (rehearsal + outreach) and the Sunday after it · "Not reported" = no form submitted, counted as 0 ·
+      if a hub reports twice, the latest report is used</footer>
+  </div>
+
+<script>
+var charts = {};
+function bar(id, labels, datasets) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), { type:'bar', plugins:[GLGC.valueLabels],
+    data:{ labels:labels, datasets:datasets },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} },
+      scales:{ x:{ ticks:{color:'#ddd',font:{size:12},maxRotation:40,minRotation:0}, grid:{color:'#1a1a1a'} },
+               y:{ beginAtZero:true, grace:'14%', ticks:{color:'#ddd',precision:0}, grid:{color:'#1e1e1e'} } } } });
+}
+function ds(label, data, color) { return { label:label, data:data, backgroundColor:color, borderRadius:4, maxBarThickness:42 }; }
+
+GLGC.load(function (M) {
+  GLGC.banner(M);
+  var sel = document.getElementById('week');
+  if (!M.weeks.length) { document.getElementById('status').innerHTML = '<div class="empty">No reports submitted yet. The dashboard fills in automatically after the first weekend.</div>'; return; }
+  sel.innerHTML = M.weeks.slice().reverse().map(function (w) { return '<option value="'+w.key+'">WK '+w.wk+' · '+w.label+'</option>'; }).join('');
+  sel.onchange = render; render();
+
+  function render() {
+    var k = +sel.value, n = M.hubs.length;
+    function val(t, h, f) { var r = M.get(t, k, h.hub); return r ? r[f] : null; }
+    var defs = { rehearsal:M.defaulters('rehearsal',k), outreach:M.defaulters('outreach',k), sunday:M.defaulters('sunday',k) };
+
+    var kp = [
+      { lab:'Rehearsal attendance', val:M.total('rehearsal',k,'attendance'), note:(n-defs.rehearsal.length)+' of '+n+' hubs reported', c:'var(--blue)' },
+      { lab:'Rehearsal offering (GHS)', val:M.total('rehearsal',k,'offering'), note:'sum of all hubs', c:'var(--gold)' },
+      { lab:'Sunday attendance', val:M.total('sunday',k,'attendance'), note:(n-defs.sunday.length)+' of '+n+' hubs reported', c:'var(--sun)' },
+      { lab:'Went out on outreach', val:M.total('outreach',k,'members'), note:(n-defs.outreach.length)+' of '+n+' hubs reported', c:'var(--green)' },
+      { lab:'Souls won', val:M.total('outreach',k,'souls'), note:'gave their life to Christ', c:'var(--red)' },
+      { lab:'Hubs fully reported', val:M.hubs.filter(function (h) { return M.get('rehearsal',k,h.hub) && M.get('outreach',k,h.hub) && M.get('sunday',k,h.hub); }).length + ' / ' + n, note:'sent all 3 reports this weekend', c:'var(--purple)', raw:true }
+    ];
+    document.getElementById('kpis').innerHTML = kp.map(function (x) {
+      return '<div class="kpi" style="--kc:'+x.c+'"><div class="lab">'+x.lab+'</div><div class="val">'+(x.raw ? x.val : GLGC.fmt(x.val))+'</div><div class="note">'+x.note+'</div></div>'; }).join('');
+
+    document.getElementById('defs').innerHTML = [['rehearsal','Rehearsal'],['outreach','Outreach'],['sunday','Sunday']].map(function (p) {
+      var list = defs[p[0]];
+      if (!list.length) return '<div class="def ok"><h4>'+p[1]+' · all hubs reported ✓</h4></div>';
+      return '<div class="def"><h4>'+p[1]+' · '+list.length+' not reported</h4><ul>'+list.map(function (h) {
+        return '<li>'+h.short+' <span class="gov">— '+h.governors.join(', ')+'</span></li>'; }).join('')+'</ul></div>';
+    }).join('');
+
+    var labels = M.hubs.map(function (h) { return h.short; });
+    bar('c1', labels, [ ds('Rehearsal', M.hubs.map(function (h) { return val('rehearsal',h,'attendance'); }), '#1f5fff'),
+                        ds('Sunday',    M.hubs.map(function (h) { return val('sunday',h,'attendance'); }), '#f5c518') ]);
+    bar('c2', labels, [ ds('Went out', M.hubs.map(function (h) { return val('outreach',h,'members'); }), '#35c27a'),
+                        ds('Souls',    M.hubs.map(function (h) { return val('outreach',h,'souls'); }), '#e2574c') ]);
+
+    function cell(t, h, f, cls) { var r = M.get(t, k, h.hub);
+      return r ? '<td class="num '+cls+'">'+GLGC.fmt(r[f])+'</td>' : '<td class="num miss">not reported</td>'; }
+    document.querySelector('#tbl tbody').innerHTML = M.hubs.map(function (h) {
+      return '<tr><td><div class="gname">'+h.hub+'</div><div class="gsub">'+h.governors.join(', ')+'</div></td>'+
+        cell('rehearsal',h,'attendance','b')+cell('rehearsal',h,'offering','')+cell('sunday',h,'attendance','s')+
+        cell('outreach',h,'members','g')+cell('outreach',h,'souls','r')+'</tr>'; }).join('');
+    document.querySelector('#tbl tfoot').innerHTML = '<tr><td>Weekend total</td>'+
+      '<td class="num b">'+GLGC.fmt(kp[0].val)+'</td><td class="num">'+GLGC.fmt(kp[1].val)+'</td><td class="num s">'+GLGC.fmt(kp[2].val)+'</td>'+
+      '<td class="num g">'+GLGC.fmt(kp[3].val)+'</td><td class="num r">'+GLGC.fmt(kp[4].val)+'</td></tr>';
+  }
+}, GLGC.fail);
+</script>
+</body>
+</html>

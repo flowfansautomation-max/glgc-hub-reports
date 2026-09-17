@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GLGC Hub Reports — Per Hub</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css?v=3">
+  <script src="config.js?v=3"></script><script src="roster.js?v=3"></script><script src="data.js?v=3"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top"><div class="nav">
+      <a href="index.html">Weekly Summary</a>
+      <a href="hub.html" class="active">Per Hub</a>
+      <a href="trends.html">Trends</a>
+    </div></div>
+    <div class="title">Per Hub</div>
+    <div class="sub">One hub center, week by week</div>
+    <div class="controls">
+      <label>Hub Center<select id="hub"></select></label>
+      <label>Show<select id="period"><option value="0">All weeks</option><option value="4">Last 4 weeks</option><option value="8" selected>Last 8 weeks</option><option value="12">Last 12 weeks</option></select></label>
+    </div>
+    <div id="status"></div>
+    <div class="hubhead"><div class="name" id="hname"></div><div class="meta" id="hmeta"></div></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="section-label">🎤 Rehearsal — attendance &amp; offering</div>
+    <div class="legend"><span><i class="sw" style="background:var(--blue)"></i> Attendance</span><span><i class="sw" style="background:var(--red)"></i> Offering (GHS, right axis)</span></div>
+    <div class="chartscroll"><div class="chartinner"><canvas id="c1"></canvas></div></div>
+
+    <div class="section-label">⛪ Sunday attendance</div>
+    <div class="chartscroll"><div class="chartinner"><canvas id="c2"></canvas></div></div>
+
+    <div class="section-label">🌍 Outreach</div>
+    <div class="legend"><span><i class="sw" style="background:var(--green)"></i> Went out</span><span><i class="sw" style="background:var(--red)"></i> Souls won</span></div>
+    <div class="chartscroll"><div class="chartinner"><canvas id="c3"></canvas></div></div>
+
+    <div class="section-label">🧾 Report history</div>
+    <div class="chartscroll"><table id="tbl">
+      <thead><tr><th>Weekend</th><th class="num">Rehearsal</th><th class="num">Offering</th><th>Reh. photo</th><th class="num">Sunday</th><th>Sun. photo</th>
+        <th>Outreach location</th><th class="num">Went out</th><th class="num">Souls won</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <footer>Gaps in a chart = that weekend was not reported · photo links open in Google Drive (visible to people the Drive folder is shared with)</footer>
+  </div>
+<script>
+var charts = {};
+function chart(id, labels, datasets, rightAxis) {
+  if (charts[id]) charts[id].destroy();
+  var scales = { x:{ ticks:{color:'#ddd',font:{size:11}}, grid:{color:'#1a1a1a'} },
+                 y:{ beginAtZero:true, grace:'14%', ticks:{color:'#ddd',precision:0}, grid:{color:'#1e1e1e'}, title:{display:true,text:'People',color:'#888'} } };
+  if (rightAxis) scales.y1 = { position:'right', beginAtZero:true, grace:'14%', ticks:{color:'#f2938b'}, grid:{drawOnChartArea:false}, title:{display:true,text:'GHS',color:'#f2938b'} };
+  charts[id] = new Chart(document.getElementById(id), { type:'bar', plugins:[GLGC.valueLabels], data:{ labels:labels, datasets:datasets },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:scales } });
+}
+function ds(label, data, color, axis) { return { label:label, data:data, backgroundColor:color, borderRadius:4, maxBarThickness:38, yAxisID:axis||'y' }; }
+
+GLGC.load(function (M) {
+  GLGC.banner(M);
+  var hubSel = document.getElementById('hub'), perSel = document.getElementById('period');
+  hubSel.innerHTML = M.hubs.map(function (h, i) { return '<option value="'+i+'">'+h.hub+'</option>'; }).join('');
+  var q = new URLSearchParams(location.search).get('hub'); if (q != null && M.hubs[+q]) hubSel.value = q;
+  hubSel.onchange = perSel.onchange = render; render();
+
+  function render() {
+    var h = M.hubs[+hubSel.value], n = +perSel.value;
+    var weeks = n ? M.weeks.slice(-n) : M.weeks;
+    document.getElementById('hname').textContent = h.hub;
+    document.getElementById('hmeta').textContent = 'Governors: ' + h.governors.join(', ') + ' · ' + h.shepherds + ' shepherd' + (h.shepherds === 1 ? '' : 's');
+    if (!weeks.length) { document.getElementById('status').innerHTML = '<div class="empty">No reports submitted yet.</div>'; return; }
+    function col(t, f) { return weeks.map(function (w) { var r = M.get(t, w.key, h.hub); return r ? r[f] : null; }); }
+    function sum(a) { return a.reduce(function (s, v) { return s + (v || 0); }, 0); }
+    function reported(t) { return weeks.filter(function (w) { return M.get(t, w.key, h.hub); }).length; }
+    function avg(a) { var v = a.filter(function (x) { return x != null; }); return v.length ? Math.round(sum(v) / v.length) : null; }
+    var labels = weeks.map(function (w) { return ['WK ' + w.wk, w.label.replace(/ \d{4}$/, '')]; });
+    var ra = col('rehearsal','attendance'), ro = col('rehearsal','offering'), sa = col('sunday','attendance');
+    var om = col('outreach','members'), os = col('outreach','souls');
+
+    var kp = [
+      { lab:'Avg rehearsal attendance', val:avg(ra), note:'reported '+reported('rehearsal')+' of '+weeks.length+' weekends', c:'var(--blue)' },
+      { lab:'Total offering (GHS)', val:sum(ro), note:'over the period shown', c:'var(--gold)' },
+      { lab:'Avg Sunday attendance', val:avg(sa), note:'reported '+reported('sunday')+' of '+weeks.length+' weekends', c:'var(--sun)' },
+      { lab:'Outreach trips', val:reported('outreach'), note:'of '+weeks.length+' weekends', c:'var(--green)' },
+      { lab:'Souls won', val:sum(os), note:'over the period shown', c:'var(--red)' },
+      { lab:'Total went out', val:sum(om), note:'members on outreach, period shown', c:'var(--purple)' }
+    ];
+    document.getElementById('kpis').innerHTML = kp.map(function (x) {
+      return '<div class="kpi" style="--kc:'+x.c+'"><div class="lab">'+x.lab+'</div><div class="val">'+GLGC.fmt(x.val)+'</div><div class="note">'+x.note+'</div></div>'; }).join('');
+
+    chart('c1', labels, [ ds('Attendance', ra, '#1f5fff'), ds('Offering', ro, '#e2574c', 'y1') ], true);
+    chart('c2', labels, [ ds('Sunday', sa, '#f5c518') ]);
+    chart('c3', labels, [ ds('Went out', om, '#35c27a'), ds('Souls', os, '#e2574c') ]);
+
+    function photo(r) { return r && r.photo ? '<a class="photo" target="_blank" rel="noopener" href="'+r.photo+'">view</a>' : '<span class="gsub">—</span>'; }
+    function num(r, f, cls) { return r ? '<td class="num '+cls+'">'+GLGC.fmt(r[f])+'</td>' : '<td class="num miss">—</td>'; }
+    document.querySelector('#tbl tbody').innerHTML = weeks.slice().reverse().map(function (w) {
+      var R = M.get('rehearsal', w.key, h.hub), S = M.get('sunday', w.key, h.hub), O = M.get('outreach', w.key, h.hub);
+      return '<tr><td><span class="gname">WK '+w.wk+'</span> <span class="gsub">'+w.label+'</span></td>'+
+        num(R,'attendance','b')+num(R,'offering','')+'<td>'+photo(R)+'</td>'+num(S,'attendance','s')+'<td>'+photo(S)+'</td>'+
+        '<td>'+(O ? (O.location || '—') : '<span class="miss">not reported</span>')+'</td>'+num(O,'members','g')+num(O,'souls','r')+'</tr>';
+    }).join('');
+  }
+}, GLGC.fail);
+</script>
+</body>
+</html>
