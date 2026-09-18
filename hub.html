@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Per Hub</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=6">
-  <script src="config.js?v=6"></script><script src="roster.js?v=6"></script><script src="data.js?v=6"></script>
+  <link rel="stylesheet" href="style.css?v=7">
+  <script src="config.js?v=7"></script><script src="roster.js?v=7"></script><script src="data.js?v=7"></script>
 </head>
 <body>
   <div class="wrap">
@@ -68,7 +68,7 @@ GLGC.load(function (M) {
     var h = M.hubs[+hubSel.value], n = +perSel.value;
     var weeks = n ? M.weeks.slice(-n) : M.weeks;
     document.getElementById('hname').textContent = h.hub;
-    document.getElementById('hmeta').textContent = 'Governors: ' + h.governors.join(', ') + ' · ' + h.shepherds + ' shepherd' + (h.shepherds === 1 ? '' : 's');
+    document.getElementById('hmeta').textContent = 'Overseer: ' + h.overseer + ' · Governors: ' + h.governors.join(', ') + ' · ' + h.shepherds + ' shepherd' + (h.shepherds === 1 ? '' : 's');
     if (!weeks.length) { document.getElementById('status').innerHTML = '<div class="empty">No reports submitted yet.</div>'; return; }
     function col(t, f) { return weeks.map(function (w) { var r = M.get(t, w.key, h.hub); return r ? r[f] : null; }); }
     function sum(a) { return a.reduce(function (s, v) { return s + (v || 0); }, 0); }

@@ -37,7 +37,7 @@ window.GLGC = (function () {
   // ---------- gviz ----------
   var FIELDS = { // field -> words that identify its column header
     ts: ['timestamp'], date: ['date'], hub: ['hub'], governor: ['governor'],
-    attendance: ['attendance'], offering: ['offering'], souls: ['souls'], photo: ['photo', 'picture', 'image']
+    attendance: ['attendance'], offering: ['offering'], souls: ['souls'], service: ['service'], photo: ['photo', 'picture', 'image']
   };
   function parseTable(resp) {
     var t = resp.table, labels = t.cols.map(function (c) { return String(c.label || '').trim(); });
@@ -60,7 +60,7 @@ window.GLGC = (function () {
       function v(f) { var i = idx[f]; return i >= 0 && c[i] ? c[i].v : null; }
       return { ts: parseDate(v('ts')), date: parseDate(v('date')), hub: String(v('hub') || '').trim(),
         governor: String(v('governor') || '').trim(), attendance: toNum(v('attendance')),
-        offering: toNum(v('offering')), souls: toNum(v('souls')),
+        offering: toNum(v('offering')), souls: toNum(v('souls')), service: String(v('service') || '').trim(),
         photo: String(v('photo') || '').split(',')[0].trim() };
     }).filter(function (r) { return r.hub && (r.date || r.ts); });
   }
@@ -93,7 +93,7 @@ window.GLGC = (function () {
         if (rnd(s) > 0.18) { var a = Math.round(base * (0.7 + rnd(s + 1) * 0.6));
           out.rehearsal.push({ ts: d, date: d, hub: h.hub, governor: h.governors[0], attendance: a, offering: Math.round(a * (4 + rnd(s + 2) * 6)), photo: '' }); }
         if (rnd(s + 3) > 0.3) { var m = 1 + Math.round(base * rnd(s + 5) * 0.5);
-          for (var q = 0; q < m; q++) out.outreach.push({ ts: d, date: d, hub: h.hub, governor: h.governors[Math.floor(rnd(s + 9 + q) * h.governors.length)], souls: 1 }); }
+          for (var q = 0; q < m; q++) out.outreach.push({ ts: d, date: d, hub: h.hub, governor: h.governors[Math.floor(rnd(s + 9 + q) * h.governors.length)], service: ['JN','HGE','FLE'][Math.floor(rnd(s + 20 + q) * 3)], souls: 1 }); }
         if (rnd(s + 7) > 0.12) out.sunday.push({ ts: sun, date: sun, hub: h.hub, governor: h.governors[0],
           attendance: Math.round(base * (1 + rnd(s + 8) * 0.9)), photo: '' });
       });
@@ -104,7 +104,7 @@ window.GLGC = (function () {
   // ---------- model ----------
   function build(raw, isSample) {
     var known = {}; HUBS.forEach(function (h) { known[h.hub] = 1; });
-    var weeks = {}, data = {}, gov = {}, hubGov = {};
+    var weeks = {}, data = {}, gov = {}, hubGov = {}, svc = {};
     TYPES.forEach(function (type) {
       data[type] = {};
       (raw[type] || []).forEach(function (r) {
@@ -115,6 +115,7 @@ window.GLGC = (function () {
         if (type === 'outreach') {                                     // one row per soul → add up
           var n = r.souls == null ? 1 : r.souls, g = r.governor || 'Unknown';
           var gw = gov[key] || (gov[key] = {}); gw[g] = (gw[g] || 0) + n;
+          var sw = svc[key] || (svc[key] = {}), sv = r.service || 'Not stated'; sw[sv] = (sw[sv] || 0) + n;
           var hw = hubGov[key] || (hubGov[key] = {}), hh = hw[r.hub] || (hw[r.hub] = {}); hh[g] = (hh[g] || 0) + n;
           if (prev) prev.souls += n; else slot[r.hub] = { hub: r.hub, governor: r.governor, ts: r.ts, date: r.date, souls: n };
         } else if (!prev || ((r.ts || 0) >= (prev.ts || 0))) slot[r.hub] = r; // latest submission wins
@@ -135,11 +136,13 @@ window.GLGC = (function () {
       if (!seen[g]) { seen[g] = { name: g, hubs: [] }; govList.push(seen[g]); }
       seen[g].hubs.push(h.short);
     }); });
+    (window.EXTRA_GOVERNORS || []).forEach(function (g) { if (!seen[g]) { seen[g] = { name: g, hubs: [] }; govList.push(seen[g]); } });
+    function serviceSouls(key) { return svc[key] || {}; }
     function govSouls(key, g) { return (gov[key] || {})[g] || 0; }               // a governor, all their hubs
     function hubGovSouls(key, hub, g) { return ((hubGov[key] || {})[hub] || {})[g] || 0; } // a governor in one hub
     function govDefaulters(key) { return govList.filter(function (g) { return !govSouls(key, g.name); }); }
     return { sample: !!isSample, weeks: weekList, hubs: HUBS, governors: govList, get: get, defaulters: defaulters,
-             total: total, govSouls: govSouls, hubGovSouls: hubGovSouls, govDefaulters: govDefaulters };
+             total: total, serviceSouls: serviceSouls, govSouls: govSouls, hubGovSouls: hubGovSouls, govDefaulters: govDefaulters };
   }
 
   function load(cb, onErr) {
