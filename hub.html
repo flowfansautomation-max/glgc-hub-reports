@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Per Hub</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=7">
-  <script src="config.js?v=7"></script><script src="roster.js?v=7"></script><script src="data.js?v=7"></script>
+  <link rel="stylesheet" href="style.css?v=9">
+  <script src="config.js?v=9"></script><script src="roster.js?v=9"></script><script src="data.js?v=9"></script>
 </head>
 <body>
   <div class="wrap">
@@ -26,7 +26,7 @@
     <div class="kpis" id="kpis"></div>
 
     <div class="section-label">🎤 Rehearsal — attendance &amp; offering</div>
-    <div class="legend"><span><i class="sw" style="background:var(--blue)"></i> Attendance</span><span><i class="sw" style="background:var(--red)"></i> Offering (GHS, right axis)</span></div>
+    <div class="legend"><span><i class="sw" style="background:var(--blue)"></i> Rehearsal (governors' reports added up)</span><span><i class="sw" style="background:var(--purple)"></i> Hub attendance (overseer)</span><span><i class="sw" style="background:var(--red)"></i> Offering (GHS, overseer, right axis)</span></div>
     <div class="chartscroll"><div class="chartinner"><canvas id="c1"></canvas></div></div>
 
     <div class="section-label">⛪ Sunday attendance</div>
@@ -36,13 +36,19 @@
     <div class="legend" id="glegend"></div>
     <div class="chartscroll"><div class="chartinner"><canvas id="c3"></canvas></div></div>
 
+    <div class="section-label">👥 Governors in this hub — latest weekend shown</div>
+    <div class="chartscroll"><table id="gtbl" class="ppt">
+      <thead><tr><th>Governor</th><th class="num">Rehearsal</th><th class="num">Sunday</th><th class="num">Souls Won</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+
     <div class="section-label">🧾 Report history</div>
     <div class="chartscroll"><table id="tbl">
-      <thead><tr><th>Weekend</th><th class="num">Rehearsal</th><th class="num">Offering</th><th>Reh. photo</th><th class="num">Sunday</th><th>Sun. photo</th>
+      <thead><tr><th>Weekend</th><th class="num">Rehearsal</th><th>Reh. photo</th><th class="num">Hub attendance</th><th class="num">Offering</th><th>Overseer photo</th><th class="num">Sunday</th><th>Sun. photo</th>
         <th class="num">Souls won</th></tr></thead>
       <tbody></tbody>
     </table></div>
-    <footer>Gaps in a chart = that weekend was not reported · photo links open in Google Drive (visible to people the Drive folder is shared with)</footer>
+    <footer>Rehearsal and Sunday = the hub's governors added together · gaps in a chart = not reported · photo links open in Google Drive (visible to people the Drive folder is shared with)</footer>
   </div>
 <script>
 var charts = {};
@@ -75,12 +81,12 @@ GLGC.load(function (M) {
     function reported(t) { return weeks.filter(function (w) { return M.get(t, w.key, h.hub); }).length; }
     function avg(a) { var v = a.filter(function (x) { return x != null; }); return v.length ? Math.round(sum(v) / v.length) : null; }
     var labels = weeks.map(function (w) { return ['WK ' + w.wk, w.label.replace(/ \d{4}$/, '')]; });
-    var ra = col('rehearsal','attendance'), ro = col('rehearsal','offering'), sa = col('sunday','attendance');
+    var ra = col('rehearsal','attendance'), oa = col('overseer','attendance'), ro = col('overseer','offering'), sa = col('sunday','attendance');
     var os = col('outreach','souls');
 
     var kp = [
       { lab:'Avg rehearsal attendance', val:avg(ra), note:'reported '+reported('rehearsal')+' of '+weeks.length+' weekends', c:'var(--blue)' },
-      { lab:'Total offering (GHS)', val:sum(ro), note:'over the period shown', c:'var(--gold)' },
+      { lab:'Total offering (GHS)', val:sum(ro), note:'overseer reported '+reported('overseer')+' of '+weeks.length+' weekends', c:'var(--gold)' },
       { lab:'Avg Sunday attendance', val:avg(sa), note:'reported '+reported('sunday')+' of '+weeks.length+' weekends', c:'var(--sun)' },
       { lab:'Weekends with souls', val:reported('outreach'), note:'of '+weeks.length+' weekends', c:'var(--green)' },
       { lab:'Souls won', val:sum(os), note:'over the period shown', c:'var(--red)' },
@@ -89,7 +95,7 @@ GLGC.load(function (M) {
     document.getElementById('kpis').innerHTML = kp.map(function (x) {
       return '<div class="kpi" style="--kc:'+x.c+'"><div class="lab">'+x.lab+'</div><div class="val">'+GLGC.fmt(x.val)+'</div><div class="note">'+x.note+'</div></div>'; }).join('');
 
-    chart('c1', labels, [ ds('Attendance', ra, '#1f5fff'), ds('Offering', ro, '#e2574c', 'y1') ], true);
+    chart('c1', labels, [ ds('Rehearsal', ra, '#1f5fff'), ds('Overseer', oa, '#a78bfa'), ds('Offering', ro, '#e2574c', 'y1') ], true);
     chart('c2', labels, [ ds('Sunday', sa, '#f5c518') ]);
     var GC = ['#e2574c','#35c27a','#a78bfa','#f5c518','#1f5fff'];
     chart('c3', labels, h.governors.map(function (g, i) {
@@ -99,12 +105,18 @@ GLGC.load(function (M) {
       var t = weeks.reduce(function (s, w) { return s + M.hubGovSouls(w.key, h.hub, g); }, 0);
       return '<span><i class="sw" style="background:'+GC[i % GC.length]+'"></i> '+g+' · '+t+'</span>'; }).join('');
 
+    var last = weeks[weeks.length - 1];
+    function grep(r) { return r ? '<td class="num">'+GLGC.fmt(r.attendance)+'</td>' : '<td class="num nr">not reported</td>'; }
+    document.querySelector('#gtbl tbody').innerHTML = h.governors.map(function (g) {
+      var s = M.hubGovSouls(last.key, h.hub, g);
+      return '<tr><td class="gname">'+g+'</td>'+grep(M.govGet('rehearsal',last.key,h.hub,g))+grep(M.govGet('sunday',last.key,h.hub,g))+'<td class="num'+(s ? '' : ' zero')+'">'+s+'</td></tr>'; }).join('');
+
     function photo(r) { return r && r.photo ? '<a class="photo" target="_blank" rel="noopener" href="'+r.photo+'">view</a>' : '<span class="gsub">—</span>'; }
     function num(r, f, cls) { return r ? '<td class="num '+cls+'">'+GLGC.fmt(r[f])+'</td>' : '<td class="num miss">—</td>'; }
     document.querySelector('#tbl tbody').innerHTML = weeks.slice().reverse().map(function (w) {
-      var R = M.get('rehearsal', w.key, h.hub), S = M.get('sunday', w.key, h.hub), O = M.get('outreach', w.key, h.hub);
+      var R = M.get('rehearsal', w.key, h.hub), S = M.get('sunday', w.key, h.hub), O = M.get('outreach', w.key, h.hub), V = M.get('overseer', w.key, h.hub);
       return '<tr><td><span class="gname">WK '+w.wk+'</span> <span class="gsub">'+w.label+'</span></td>'+
-        num(R,'attendance','b')+num(R,'offering','')+'<td>'+photo(R)+'</td>'+num(S,'attendance','s')+'<td>'+photo(S)+'</td>'+
+        num(R,'attendance','b')+'<td>'+photo(R)+'</td>'+num(V,'attendance','p')+num(V,'offering','')+'<td>'+photo(V)+'</td>'+num(S,'attendance','s')+'<td>'+photo(S)+'</td>'+
         num(O,'souls','r')+'</tr>';
     }).join('');
   }

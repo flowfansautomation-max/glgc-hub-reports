@@ -5,5 +5,5 @@
    While SHEET_ID is empty the dashboard shows SAMPLE data. */
 window.GLGC_CONFIG = {
   SHEET_ID: '1A5Ltl_FACBMJAL9LCiU47kTr2oyyJH1x_fyrbk-U0cM',
-  TABS: { rehearsal: 'Rehearsal', outreach: 'Outreach', sunday: 'Sunday' }
+  TABS: { rehearsal: 'Rehearsal', outreach: 'Outreach', sunday: 'Sunday', overseer: 'Overseer' }
 };

@@ -1,11 +1,11 @@
 /* Live loader for the GLGC Hub Reports dashboard.
    Reads the Rehearsal / Outreach / Sunday tabs via gviz JSONP (no backend),
-   groups every report into a WEEKEND (keyed by its Saturday). Rehearsal and Sunday keep
-   the latest submission per hub per weekend. Outreach is ONE ROW PER SOUL (no personal
-   details in this sheet), so its rows are ADDED UP per hub per weekend. */
+   groups every report into a WEEKEND (keyed by its Saturday).
+   - Rehearsal + Sunday: every GOVERNOR reports their own members; hub total = sum of its governors.
+   - Outreach: ONE ROW PER SOUL (no personal details in this sheet), added up per governor.
+   - Overseer: one report per hub (total hub attendance + offering). */
 window.GLGC = (function () {
   var CFG = window.GLGC_CONFIG, HUBS = window.HUBS;
-  var TYPES = ['rehearsal', 'outreach', 'sunday'];
 
   // ---------- dates ----------
   function parseDate(v) {
@@ -36,7 +36,7 @@ window.GLGC = (function () {
 
   // ---------- gviz ----------
   var FIELDS = { // field -> words that identify its column header
-    ts: ['timestamp'], date: ['date'], hub: ['hub'], governor: ['governor'],
+    ts: ['timestamp'], date: ['date'], hub: ['hub center'], governor: ['governor'], overseer: ['overseer'],
     attendance: ['attendance'], offering: ['offering'], souls: ['souls'], service: ['service'], photo: ['photo', 'picture', 'image']
   };
   function parseTable(resp) {
@@ -59,7 +59,7 @@ window.GLGC = (function () {
       var c = r.c || [];
       function v(f) { var i = idx[f]; return i >= 0 && c[i] ? c[i].v : null; }
       return { ts: parseDate(v('ts')), date: parseDate(v('date')), hub: String(v('hub') || '').trim(),
-        governor: String(v('governor') || '').trim(), attendance: toNum(v('attendance')),
+        governor: String(v('governor') || '').trim(), overseer: String(v('overseer') || '').trim(), attendance: toNum(v('attendance')),
         offering: toNum(v('offering')), souls: toNum(v('souls')), service: String(v('service') || '').trim(),
         photo: String(v('photo') || '').split(',')[0].trim() };
     }).filter(function (r) { return r.hub && (r.date || r.ts); });
@@ -83,53 +83,79 @@ window.GLGC = (function () {
   // ---------- sample data (until SHEET_ID is set) ----------
   function sample() {
     function rnd(seed) { var x = Math.sin(seed) * 10000; return x - Math.floor(x); }
-    var out = { rehearsal: [], outreach: [], sunday: [] };
+    var out = { rehearsal: [], outreach: [], sunday: [], overseer: [] };
     var sat = weekendSaturday(new Date()); if (sat > new Date()) sat.setDate(sat.getDate() - 7);
     for (var w = 5; w >= 0; w--) {
       var d = new Date(sat); d.setDate(d.getDate() - 7 * w);
       var sun = new Date(d); sun.setDate(sun.getDate() + 1);
       HUBS.forEach(function (h, i) {
-        var s = (i + 1) * 37 + w * 101, base = 6 + h.shepherds * 3;
-        if (rnd(s) > 0.18) { var a = Math.round(base * (0.7 + rnd(s + 1) * 0.6));
-          out.rehearsal.push({ ts: d, date: d, hub: h.hub, governor: h.governors[0], attendance: a, offering: Math.round(a * (4 + rnd(s + 2) * 6)), photo: '' }); }
-        if (rnd(s + 3) > 0.3) { var m = 1 + Math.round(base * rnd(s + 5) * 0.5);
-          for (var q = 0; q < m; q++) out.outreach.push({ ts: d, date: d, hub: h.hub, governor: h.governors[Math.floor(rnd(s + 9 + q) * h.governors.length)], service: ['JN','HGE','FLE'][Math.floor(rnd(s + 20 + q) * 3)], souls: 1 }); }
-        if (rnd(s + 7) > 0.12) out.sunday.push({ ts: sun, date: sun, hub: h.hub, governor: h.governors[0],
-          attendance: Math.round(base * (1 + rnd(s + 8) * 0.9)), photo: '' });
+        var hubTotal = 0;
+        h.governors.forEach(function (g, gi) {
+          var s = (i + 1) * 37 + w * 101 + gi * 13, base = 5 + Math.round(h.shepherds * 3 / h.governors.length);
+          if (rnd(s) > 0.2) { var a = Math.round(base * (0.7 + rnd(s + 1) * 0.6)); hubTotal += a;
+            out.rehearsal.push({ ts: d, date: d, hub: h.hub, governor: g, attendance: a, photo: '' }); }
+          if (rnd(s + 3) > 0.45) { var m = 1 + Math.round(base * rnd(s + 5) * 0.4);
+            for (var q = 0; q < m; q++) out.outreach.push({ ts: d, date: d, hub: h.hub, governor: g,
+              service: ['JN','HGE','FLE'][Math.floor(rnd(s + 20 + q) * 3)], souls: 1 }); }
+          if (rnd(s + 7) > 0.15) out.sunday.push({ ts: sun, date: sun, hub: h.hub, governor: g,
+            attendance: Math.round(base * (1 + rnd(s + 8) * 0.9)), photo: '' });
+        });
+        var so = (i + 1) * 53 + w * 71;
+        if (rnd(so) > 0.15) { var t = hubTotal + Math.round(rnd(so + 1) * 6);
+          out.overseer.push({ ts: d, date: d, hub: h.hub, overseer: h.overseer, attendance: t, offering: Math.round(t * (4 + rnd(so + 2) * 6)), photo: '' }); }
       });
     }
     return out;
   }
 
   // ---------- model ----------
+  // rehearsal / sunday : each GOVERNOR reports their own members  → latest per (hub, governor); hub total = sum
+  // outreach           : one row per soul                          → added up per governor
+  // overseer           : one report per hub (attendance + offering) → latest per hub
   function build(raw, isSample) {
-    var known = {}; HUBS.forEach(function (h) { known[h.hub] = 1; });
-    var weeks = {}, data = {}, gov = {}, hubGov = {}, svc = {};
-    TYPES.forEach(function (type) {
-      data[type] = {};
+    var weeks = {}, per = { rehearsal: {}, sunday: {} }, ovr = {}, out = {}, gov = {}, hubGov = {}, svc = {};
+    function wk(r) { var sat = weekendSaturday(r.date || r.ts), key = sat.getTime(); weeks[key] = sat; return key; }
+    function newer(r, prev) { return !prev || ((r.ts || 0) >= (prev.ts || 0)); }
+
+    ['rehearsal', 'sunday'].forEach(function (type) {
       (raw[type] || []).forEach(function (r) {
-        var sat = weekendSaturday(r.date || r.ts), key = sat.getTime();
-        weeks[key] = sat;
-        var slot = data[type][key] || (data[type][key] = {});
-        var prev = slot[r.hub];
-        if (type === 'outreach') {                                     // one row per soul → add up
-          var n = r.souls == null ? 1 : r.souls, g = r.governor || 'Unknown';
-          var gw = gov[key] || (gov[key] = {}); gw[g] = (gw[g] || 0) + n;
-          var sw = svc[key] || (svc[key] = {}), sv = r.service || 'Not stated'; sw[sv] = (sw[sv] || 0) + n;
-          var hw = hubGov[key] || (hubGov[key] = {}), hh = hw[r.hub] || (hw[r.hub] = {}); hh[g] = (hh[g] || 0) + n;
-          if (prev) prev.souls += n; else slot[r.hub] = { hub: r.hub, governor: r.governor, ts: r.ts, date: r.date, souls: n };
-        } else if (!prev || ((r.ts || 0) >= (prev.ts || 0))) slot[r.hub] = r; // latest submission wins
+        var key = wk(r), a = per[type][key] || (per[type][key] = {}), b = a[r.hub] || (a[r.hub] = {}), g = r.governor || 'Unknown';
+        if (newer(r, b[g])) b[g] = r;
       });
     });
+    (raw.overseer || []).forEach(function (r) { var key = wk(r), a = ovr[key] || (ovr[key] = {}); if (newer(r, a[r.hub])) a[r.hub] = r; });
+    (raw.outreach || []).forEach(function (r) {
+      var key = wk(r), n = r.souls == null ? 1 : r.souls, g = r.governor || 'Unknown';
+      var a = out[key] || (out[key] = {}); a[r.hub] = (a[r.hub] || 0) + n;
+      var gw = gov[key] || (gov[key] = {}); gw[g] = (gw[g] || 0) + n;
+      var hw = hubGov[key] || (hubGov[key] = {}), hh = hw[r.hub] || (hw[r.hub] = {}); hh[g] = (hh[g] || 0) + n;
+      var sw = svc[key] || (svc[key] = {}), sv = r.service || 'Not stated'; sw[sv] = (sw[sv] || 0) + n;
+    });
+
     var weekList = Object.keys(weeks).map(Number).sort(function (a, b) { return a - b; }).map(function (k) {
       return { key: k, date: weeks[k], wk: isoWeek(weeks[k]), label: weekendLabel(weeks[k]) };
     });
-    function get(type, key, hub) { return (data[type][key] || {})[hub] || null; }
+
+    // hub-level record (null = nothing reported for that hub that weekend)
+    function get(type, key, hub) {
+      if (type === 'overseer') return (ovr[key] || {})[hub] || null;
+      if (type === 'outreach') { var n = (out[key] || {})[hub]; return n ? { hub: hub, souls: n } : null; }
+      var b = (per[type][key] || {})[hub]; if (!b) return null;
+      var sum = 0, photo = '', names = Object.keys(b);
+      names.forEach(function (g) { if (b[g].attendance != null) sum += b[g].attendance; if (!photo && b[g].photo) photo = b[g].photo; });
+      return { hub: hub, attendance: sum, photo: photo, reports: names.length };
+    }
+    function govGet(type, key, hub, g) { return ((per[type][key] || {})[hub] || {})[g] || null; }  // one governor's own report
     function defaulters(type, key) { return HUBS.filter(function (h) { return !get(type, key, h.hub); }); }
     function total(type, key, field, hub) {
       var s = 0; HUBS.forEach(function (h) { if (hub && h.hub !== hub) return; var r = get(type, key, h.hub); if (r && r[field] != null) s += r[field]; });
       return s;
     }
+
+    // every (hub, governor) pair that is expected to report
+    var pairs = []; HUBS.forEach(function (h) { h.governors.forEach(function (g) { pairs.push({ hub: h.hub, short: h.short, name: g }); }); });
+    function pairDefaulters(type, key) { return pairs.filter(function (p) { return !govGet(type, key, p.hub, p.name); }); }
+
     // governors (unique), each with the hubs they serve
     var govList = [], seen = {};
     HUBS.forEach(function (h) { h.governors.forEach(function (g) {
@@ -141,14 +167,22 @@ window.GLGC = (function () {
     function govSouls(key, g) { return (gov[key] || {})[g] || 0; }               // a governor, all their hubs
     function hubGovSouls(key, hub, g) { return ((hubGov[key] || {})[hub] || {})[g] || 0; } // a governor in one hub
     function govDefaulters(key) { return govList.filter(function (g) { return !govSouls(key, g.name); }); }
-    return { sample: !!isSample, weeks: weekList, hubs: HUBS, governors: govList, get: get, defaulters: defaulters,
-             total: total, serviceSouls: serviceSouls, govSouls: govSouls, hubGovSouls: hubGovSouls, govDefaulters: govDefaulters };
+    return { sample: !!isSample, weeks: weekList, hubs: HUBS, governors: govList, pairs: pairs, get: get, govGet: govGet,
+             defaulters: defaulters, pairDefaulters: pairDefaulters, total: total, serviceSouls: serviceSouls,
+             govSouls: govSouls, hubGovSouls: hubGovSouls, govDefaulters: govDefaulters };
   }
 
   function load(cb, onErr) {
     if (!CFG.SHEET_ID) return cb(build(sample(), true));
-    Promise.all(TYPES.map(function (t) { return fetchTab(CFG.TABS[t]); })).then(function (res) {
-      cb(build({ rehearsal: res[0], outreach: res[1], sunday: res[2] }, false));
+    var names = ['rehearsal', 'outreach', 'sunday', 'overseer'];
+    Promise.all(names.map(function (t) {
+      // the Overseer tab is optional: if it cannot be read, carry on without it
+      return fetchTab(CFG.TABS[t]).catch(function (e) { if (t === 'overseer') return []; throw e; });
+    })).then(function (res) {
+      var raw = {}; names.forEach(function (t, i) { raw[t] = res[i]; });
+      // a missing tab makes Google return the FIRST tab instead: only trust rows that carry an overseer name
+      raw.overseer = raw.overseer.filter(function (r) { return r.overseer; });
+      cb(build(raw, false));
     }).catch(function (e) { if (onErr) onErr(e); });
   }
 
