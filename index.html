@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Weekly Summary</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=4">
-  <script src="config.js?v=4"></script><script src="roster.js?v=4"></script><script src="data.js?v=4"></script>
+  <link rel="stylesheet" href="style.css?v=6">
+  <script src="config.js?v=6"></script><script src="roster.js?v=6"></script><script src="data.js?v=6"></script>
 </head>
 <body>
   <div class="wrap">
@@ -32,17 +32,18 @@
     </div>
     <div class="chartscroll"><div class="chartinner wide"><canvas id="c1"></canvas></div></div>
 
-    <div class="section-label">🌍 Outreach — by hub</div>
-    <div class="legend">
-      <span><i class="sw" style="background:var(--green)"></i> Members who went out</span>
-      <span><i class="sw" style="background:var(--red)"></i> Souls won</span>
-    </div>
+    <div class="section-label">🌍 Outreach — souls won by governor</div>
     <div class="chartscroll"><div class="chartinner wide"><canvas id="c2"></canvas></div></div>
+
+    <div class="chartscroll"><table id="gtbl" style="min-width:420px">
+      <thead><tr><th class="num">#</th><th>Governor</th><th>Hub center(s)</th><th class="num">Souls won</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
 
     <div class="section-label">🧾 All numbers by hub</div>
     <div class="chartscroll"><table id="tbl">
       <thead><tr><th>Hub Center</th><th class="num">Rehearsal</th><th class="num">Offering (GHS)</th><th class="num">Sunday</th>
-        <th class="num">Went out</th><th class="num">Souls won</th></tr></thead>
+        <th class="num">Souls won</th></tr></thead>
       <tbody></tbody><tfoot></tfoot>
     </table></div>
   </div>
@@ -70,40 +71,45 @@ GLGC.load(function (M) {
     var k = +sel.value, n = M.hubs.length;
     function val(t, h, f) { var r = M.get(t, k, h.hub); return r ? r[f] : null; }
     var defs = { rehearsal:M.defaulters('rehearsal',k), outreach:M.defaulters('outreach',k), sunday:M.defaulters('sunday',k) };
+    var govDefs = M.govDefaulters(k), ng = M.governors.length;
 
     var kp = [
       { lab:'Rehearsal attendance', val:M.total('rehearsal',k,'attendance'), note:(n-defs.rehearsal.length)+' of '+n+' hubs reported', c:'var(--blue)' },
       { lab:'Rehearsal offering (GHS)', val:M.total('rehearsal',k,'offering'), note:'sum of all hubs', c:'var(--gold)' },
       { lab:'Sunday attendance', val:M.total('sunday',k,'attendance'), note:(n-defs.sunday.length)+' of '+n+' hubs reported', c:'var(--sun)' },
-      { lab:'Went out on outreach', val:M.total('outreach',k,'members'), note:(n-defs.outreach.length)+' of '+n+' hubs reported', c:'var(--green)' },
-      { lab:'Souls won', val:M.total('outreach',k,'souls'), note:'gave their life to Christ', c:'var(--red)' },
+      { lab:'Souls won', val:M.total('outreach',k,'souls'), note:'names submitted on the outreach form', c:'var(--red)' },
+      { lab:'Governors who won souls', val:(ng-govDefs.length)+' / '+ng, note:'submitted at least one soul', c:'var(--green)', raw:true },
       { lab:'Hubs fully reported', val:M.hubs.filter(function (h) { return M.get('rehearsal',k,h.hub) && M.get('outreach',k,h.hub) && M.get('sunday',k,h.hub); }).length + ' / ' + n, note:'sent all 3 reports this weekend', c:'var(--purple)', raw:true }
     ];
     document.getElementById('kpis').innerHTML = kp.map(function (x) {
       return '<div class="kpi" style="--kc:'+x.c+'"><div class="lab">'+x.lab+'</div><div class="val">'+(x.raw ? x.val : GLGC.fmt(x.val))+'</div><div class="note">'+x.note+'</div></div>'; }).join('');
 
     document.getElementById('defs').innerHTML = [['rehearsal','Rehearsal'],['outreach','Outreach'],['sunday','Sunday']].map(function (p) {
-      var list = defs[p[0]];
-      if (!list.length) return '<div class="def ok"><h4>'+p[1]+' · all hubs reported ✓</h4></div>';
-      return '<div class="def"><h4>'+p[1]+' · '+list.length+' not reported</h4><ul>'+list.map(function (h) {
-        return '<li>'+h.short+' <span class="gov">— '+h.governors.join(', ')+'</span></li>'; }).join('')+'</ul></div>';
+      var list = p[0] === 'outreach' ? govDefs : defs[p[0]];
+      if (!list.length) return '<div class="def ok"><h4>'+p[1]+(p[0]==='outreach' ? ' · every governor submitted souls ✓' : ' · all hubs reported ✓')+'</h4></div>';
+      return '<div class="def"><h4>'+p[1]+' · '+list.length+(p[0]==='outreach' ? ' governors with no souls' : ' not reported')+'</h4><ul>'+list.map(function (h) {
+        return p[0] === 'outreach' ? '<li>'+h.name+' <span class="gov">— '+h.hubs.join(', ')+'</span></li>'
+                                   : '<li>'+h.short+' <span class="gov">— '+h.governors.join(', ')+'</span></li>'; }).join('')+'</ul></div>';
     }).join('');
 
     var labels = M.hubs.map(function (h) { return h.short; });
     bar('c1', labels, [ ds('Rehearsal', M.hubs.map(function (h) { return val('rehearsal',h,'attendance'); }), '#1f5fff'),
                         ds('Sunday',    M.hubs.map(function (h) { return val('sunday',h,'attendance'); }), '#f5c518') ]);
-    bar('c2', labels, [ ds('Went out', M.hubs.map(function (h) { return val('outreach',h,'members'); }), '#35c27a'),
-                        ds('Souls',    M.hubs.map(function (h) { return val('outreach',h,'souls'); }), '#e2574c') ]);
+    bar('c2', M.governors.map(function (g) { return g.name; }), [ ds('Souls won', M.governors.map(function (g) { return M.govSouls(k, g.name); }), '#e2574c') ]);
+
+    var gr = M.governors.map(function (g) { return { g:g, n:M.govSouls(k, g.name) }; }).sort(function (a, b) { return b.n - a.n; });
+    document.querySelector('#gtbl tbody').innerHTML = gr.map(function (x, i) {
+      return '<tr><td class="num">'+(i+1)+'</td><td class="gname">'+x.g.name+'</td><td class="gsub">'+x.g.hubs.join(', ')+'</td><td class="num '+(x.n ? 'r' : 'miss')+'">'+x.n+'</td></tr>'; }).join('');
 
     function cell(t, h, f, cls) { var r = M.get(t, k, h.hub);
       return r ? '<td class="num '+cls+'">'+GLGC.fmt(r[f])+'</td>' : '<td class="num miss">not reported</td>'; }
     document.querySelector('#tbl tbody').innerHTML = M.hubs.map(function (h) {
       return '<tr><td><div class="gname">'+h.hub+'</div><div class="gsub">'+h.governors.join(', ')+'</div></td>'+
         cell('rehearsal',h,'attendance','b')+cell('rehearsal',h,'offering','')+cell('sunday',h,'attendance','s')+
-        cell('outreach',h,'members','g')+cell('outreach',h,'souls','r')+'</tr>'; }).join('');
+        cell('outreach',h,'souls','r')+'</tr>'; }).join('');
     document.querySelector('#tbl tfoot').innerHTML = '<tr><td>Weekend total</td>'+
       '<td class="num b">'+GLGC.fmt(kp[0].val)+'</td><td class="num">'+GLGC.fmt(kp[1].val)+'</td><td class="num s">'+GLGC.fmt(kp[2].val)+'</td>'+
-      '<td class="num g">'+GLGC.fmt(kp[3].val)+'</td><td class="num r">'+GLGC.fmt(kp[4].val)+'</td></tr>';
+      '<td class="num r">'+GLGC.fmt(kp[3].val)+'</td></tr>';
   }
 }, GLGC.fail);
 </script>
