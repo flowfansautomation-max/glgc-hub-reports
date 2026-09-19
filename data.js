@@ -96,7 +96,7 @@ window.GLGC = (function () {
           if (isPrimary && rnd(s) > 0.2) { var a = Math.round(base * (0.7 + rnd(s + 1) * 0.6)); hubTotal += a;
             out.rehearsal.push({ ts: d, date: d, hub: '', governor: g, attendance: a, photo: '' }); }
           if (rnd(s + 3) > 0.45) { var m = 1 + Math.round(base * rnd(s + 5) * 0.4);
-            for (var q = 0; q < m; q++) out.outreach.push({ ts: d, date: d, hub: h.hub, governor: g,
+            if (isPrimary) for (var q = 0; q < m; q++) out.outreach.push({ ts: d, date: d, hub: '', governor: g,
               service: ['JN','HGE','FLE'][Math.floor(rnd(s + 20 + q) * 3)], souls: 1 }); }
           if (rnd(s + 7) > 0.15) out.sunday.push({ ts: sun, date: sun, hub: h.hub, governor: g,
             attendance: Math.round(base * (1 + rnd(s + 8) * 0.9)), photo: '' });
@@ -131,9 +131,10 @@ window.GLGC = (function () {
     (raw.overseer || []).forEach(function (r) { var key = wk(r), a = ovr[key] || (ovr[key] = {}); if (newer(r, a[r.hub])) a[r.hub] = r; });
     (raw.outreach || []).forEach(function (r) {
       var key = wk(r), n = r.souls == null ? 1 : r.souls, g = r.governor || 'Unknown';
-      var a = out[key] || (out[key] = {}); a[r.hub] = (a[r.hub] || 0) + n;
+      var hub = primary[g] ? primary[g].hub : (r.hub || 'No hub center');   // Outreach form has no Hub Center question
+      var a = out[key] || (out[key] = {}); a[hub] = (a[hub] || 0) + n;
       var gw = gov[key] || (gov[key] = {}); gw[g] = (gw[g] || 0) + n;
-      var hw = hubGov[key] || (hubGov[key] = {}), hh = hw[r.hub] || (hw[r.hub] = {}); hh[g] = (hh[g] || 0) + n;
+      var hw = hubGov[key] || (hubGov[key] = {}), hh = hw[hub] || (hw[hub] = {}); hh[g] = (hh[g] || 0) + n;
       var sw = svc[key] || (svc[key] = {}), sv = r.service || 'Not stated'; sw[sv] = (sw[sv] || 0) + n;
     });
 
@@ -172,11 +173,13 @@ window.GLGC = (function () {
     }); });
     (window.EXTRA_GOVERNORS || []).forEach(function (g) { if (!seen[g]) { seen[g] = { name: g, hubs: [] }; govList.push(seen[g]); } });
     function serviceSouls(key) { return svc[key] || {}; }
+    // every soul, including those won by governors who have no hub center yet
+    function soulsTotal(key) { var t = 0, g = gov[key] || {}; Object.keys(g).forEach(function (x) { t += g[x]; }); return t; }
     function govSouls(key, g) { return (gov[key] || {})[g] || 0; }               // a governor, all their hubs
     function hubGovSouls(key, hub, g) { return ((hubGov[key] || {})[hub] || {})[g] || 0; } // a governor in one hub
     function govDefaulters(key) { return govList.filter(function (g) { return !govSouls(key, g.name); }); }
     return { sample: !!isSample, weeks: weekList, hubs: HUBS, governors: govList, pairs: pairs, expected: expected, get: get, govGet: govGet,
-             defaulters: defaulters, pairDefaulters: pairDefaulters, total: total, serviceSouls: serviceSouls,
+             defaulters: defaulters, pairDefaulters: pairDefaulters, total: total, soulsTotal: soulsTotal, serviceSouls: serviceSouls,
              govSouls: govSouls, hubGovSouls: hubGovSouls, govDefaulters: govDefaulters };
   }
 

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Trends</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=10">
-  <script src="config.js?v=10"></script><script src="roster.js?v=10"></script><script src="data.js?v=10"></script>
+  <link rel="stylesheet" href="style.css?v=11">
+  <script src="config.js?v=11"></script><script src="roster.js?v=11"></script><script src="data.js?v=11"></script>
 </head>
 <body>
   <div class="wrap">
@@ -63,7 +63,7 @@ GLGC.load(function (M) {
   function orate() { return W.map(function (w) { return Math.round(100 * (n - M.defaulters('overseer', w.key).length) / n); }); }
   chart('c1', labels, [ ds('Rehearsal', tot('rehearsal','attendance'), '#1f5fff'), ds('Overseers', tot('overseer','attendance'), '#a78bfa'), ds('Sunday', tot('sunday','attendance'), '#f5c518') ]);
   chart('c2', labels, [ ds('Offering', tot('overseer','offering'), '#e6c878') ]);
-  chart('c3', labels, [ ds('Souls won', tot('outreach','souls'), '#e2574c') ]);
+  chart('c3', labels, [ ds('Souls won', W.map(function (w) { return M.soulsTotal(w.key); }), '#e2574c') ]);
   chart('c4', labels, [ ds('Rehearsal %', prate('rehearsal'), '#1f5fff'), ds('Sunday %', prate('sunday'), '#f5c518'), ds('Overseers %', orate(), '#a78bfa') ], 100);
 
   var gs = M.governors.map(function (g) { return { name:g.name, n:W.reduce(function (s, w) { return s + M.govSouls(w.key, g.name); }, 0) }; })
