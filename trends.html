@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Trends</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=9">
-  <script src="config.js?v=9"></script><script src="roster.js?v=9"></script><script src="data.js?v=9"></script>
+  <link rel="stylesheet" href="style.css?v=10">
+  <script src="config.js?v=10"></script><script src="roster.js?v=10"></script><script src="data.js?v=10"></script>
 </head>
 <body>
   <div class="wrap">
@@ -59,7 +59,7 @@ GLGC.load(function (M) {
   var labels = W.map(function (w) { return ['WK ' + w.wk, w.label.replace(/ \d{4}$/, '')]; });
   function tot(t, f) { return W.map(function (w) { return M.total(t, w.key, f); }); }
   var np = M.pairs.length;
-  function prate(t) { return W.map(function (w) { return Math.round(100 * (np - M.pairDefaulters(t, w.key).length) / np); }); }
+  function prate(t) { var e = M.expected(t).length; return W.map(function (w) { return Math.round(100 * (e - M.pairDefaulters(t, w.key).length) / e); }); }
   function orate() { return W.map(function (w) { return Math.round(100 * (n - M.defaulters('overseer', w.key).length) / n); }); }
   chart('c1', labels, [ ds('Rehearsal', tot('rehearsal','attendance'), '#1f5fff'), ds('Overseers', tot('overseer','attendance'), '#a78bfa'), ds('Sunday', tot('sunday','attendance'), '#f5c518') ]);
   chart('c2', labels, [ ds('Offering', tot('overseer','offering'), '#e6c878') ]);
@@ -76,12 +76,12 @@ GLGC.load(function (M) {
 
   var rows = M.pairs.map(function (p) {
     function c(t) { return W.filter(function (w) { return M.govGet(t, w.key, p.hub, p.name); }).length; }
-    var r = c('rehearsal'), s = c('sunday');
-    return { p:p, r:r, s:s, miss: W.length * 2 - r - s };
+    var r = p.primary ? c('rehearsal') : null, s = c('sunday');
+    return { p:p, r:r, s:s, miss: W.length * (r == null ? 1 : 2) - (r || 0) - s };
   }).sort(function (a, b) { return a.miss - b.miss; });
   document.querySelector('#tbl tbody').innerHTML = rows.map(function (x, i) {
     return '<tr><td class="rank">'+(i+1)+'</td><td class="gname">'+x.p.name+'</td><td class="hubs">'+x.p.short+'</td>'+
-      '<td class="num">'+x.r+' / '+W.length+'</td><td class="num">'+x.s+' / '+W.length+'</td>'+
+      (x.r == null ? '<td class="num zero">under '+x.p.primaryShort+'</td>' : '<td class="num">'+x.r+' / '+W.length+'</td>')+'<td class="num">'+x.s+' / '+W.length+'</td>'+
       '<td class="num'+(x.miss ? ' nr' : ' zero')+'">'+x.miss+'</td></tr>'; }).join('');
 }, GLGC.fail);
 </script>

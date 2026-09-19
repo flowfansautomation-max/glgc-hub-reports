@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Weekly Summary</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=9">
-  <script src="config.js?v=9"></script><script src="roster.js?v=9"></script><script src="data.js?v=9"></script>
+  <link rel="stylesheet" href="style.css?v=10">
+  <script src="config.js?v=10"></script><script src="roster.js?v=10"></script><script src="data.js?v=10"></script>
 </head>
 <body>
   <div class="wrap">
@@ -80,12 +80,12 @@ GLGC.load(function (M) {
   sel.onchange = render; render();
 
   function render() {
-    var k = +sel.value, n = M.hubs.length, np = M.pairs.length, ng = M.governors.length;
+    var k = +sel.value, n = M.hubs.length, np = M.pairs.length, nr = M.expected('rehearsal').length, ng = M.governors.length;
     function val(t, h, f) { var r = M.get(t, k, h.hub); return r ? r[f] : null; }
     var dReh = M.pairDefaulters('rehearsal', k), dSun = M.pairDefaulters('sunday', k), dOut = M.govDefaulters(k), dOvr = M.defaulters('overseer', k);
 
     var kp = [
-      { lab:'Rehearsal attendance', val:GLGC.fmt(M.total('rehearsal',k,'attendance')), note:(np-dReh.length)+' of '+np+' governor reports in', c:'var(--blue)' },
+      { lab:'Rehearsal attendance', val:GLGC.fmt(M.total('rehearsal',k,'attendance')), note:(nr-dReh.length)+' of '+nr+' governors reported', c:'var(--blue)' },
       { lab:'Hub attendance (overseers)', val:GLGC.fmt(M.total('overseer',k,'attendance')), note:(n-dOvr.length)+' of '+n+' overseers reported', c:'var(--purple)' },
       { lab:'Offering (GHS)', val:GLGC.fmt(M.total('overseer',k,'offering')), note:'reported by overseers', c:'var(--gold)' },
       { lab:'Sunday attendance', val:GLGC.fmt(M.total('sunday',k,'attendance')), note:(np-dSun.length)+' of '+np+' governor reports in', c:'var(--sun)' },
@@ -101,7 +101,7 @@ GLGC.load(function (M) {
     }
     function pairLine(p) { return '<li>'+p.name+' <span class="gov">— '+p.short+'</span></li>'; }
     document.getElementById('defs').innerHTML =
-      panel('Rehearsal', dReh, 'every governor reported', 'governors not reported', pairLine) +
+      panel('Rehearsal', dReh, 'every governor reported', 'governors not reported', function (p) { return '<li>'+p.name+'</li>'; }) +
       panel('Sunday', dSun, 'every governor reported', 'governors not reported', pairLine) +
       panel('Outreach', dOut, 'every governor submitted souls', 'governors with no souls',
             function (g) { return '<li>'+g.name+(g.hubs.length ? ' <span class="gov">— '+g.hubs.join(', ')+'</span>' : '')+'</li>'; }) +
@@ -126,7 +126,8 @@ GLGC.load(function (M) {
     function rep(r) { return r ? '<td class="num">'+GLGC.fmt(r.attendance)+'</td>' : '<td class="num nr">not reported</td>'; }
     document.querySelector('#ptbl tbody').innerHTML = M.pairs.map(function (p) {
       var s = M.hubGovSouls(k, p.hub, p.name);
-      return '<tr><td class="hubs">'+p.short+'</td><td class="gname">'+p.name+'</td>'+rep(M.govGet('rehearsal',k,p.hub,p.name))+rep(M.govGet('sunday',k,p.hub,p.name))+
+      var reh = p.primary ? rep(M.govGet('rehearsal',k,p.hub,p.name)) : '<td class="num zero">counted under '+p.primaryShort+'</td>';
+      return '<tr><td class="hubs">'+p.short+'</td><td class="gname">'+p.name+'</td>'+reh+rep(M.govGet('sunday',k,p.hub,p.name))+
              '<td class="num'+(s ? '' : ' zero')+'">'+s+'</td></tr>'; }).join('');
 
     function cell(t, h, f) { var r = M.get(t, k, h.hub); return r ? '<td class="num">'+GLGC.fmt(r[f])+'</td>' : '<td class="num nr">not reported</td>'; }

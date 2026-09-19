@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Per Hub</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=9">
-  <script src="config.js?v=9"></script><script src="roster.js?v=9"></script><script src="data.js?v=9"></script>
+  <link rel="stylesheet" href="style.css?v=10">
+  <script src="config.js?v=10"></script><script src="roster.js?v=10"></script><script src="data.js?v=10"></script>
 </head>
 <body>
   <div class="wrap">
@@ -48,7 +48,7 @@
         <th class="num">Souls won</th></tr></thead>
       <tbody></tbody>
     </table></div>
-    <footer>Rehearsal and Sunday = the hub's governors added together · gaps in a chart = not reported · photo links open in Google Drive (visible to people the Drive folder is shared with)</footer>
+    <footer>Rehearsal and Sunday = the hub's governors added together · a governor with more than one hub has their rehearsal counted under their first hub · gaps in a chart = not reported · photo links open in Google Drive (visible to people the Drive folder is shared with)</footer>
   </div>
 <script>
 var charts = {};
@@ -109,7 +109,9 @@ GLGC.load(function (M) {
     function grep(r) { return r ? '<td class="num">'+GLGC.fmt(r.attendance)+'</td>' : '<td class="num nr">not reported</td>'; }
     document.querySelector('#gtbl tbody').innerHTML = h.governors.map(function (g) {
       var s = M.hubGovSouls(last.key, h.hub, g);
-      return '<tr><td class="gname">'+g+'</td>'+grep(M.govGet('rehearsal',last.key,h.hub,g))+grep(M.govGet('sunday',last.key,h.hub,g))+'<td class="num'+(s ? '' : ' zero')+'">'+s+'</td></tr>'; }).join('');
+      var pr = M.pairs.filter(function (p) { return p.hub === h.hub && p.name === g; })[0];
+      var reh = pr.primary ? grep(M.govGet('rehearsal',last.key,h.hub,g)) : '<td class="num zero">counted under '+pr.primaryShort+'</td>';
+      return '<tr><td class="gname">'+g+'</td>'+reh+grep(M.govGet('sunday',last.key,h.hub,g))+'<td class="num'+(s ? '' : ' zero')+'">'+s+'</td></tr>'; }).join('');
 
     function photo(r) { return r && r.photo ? '<a class="photo" target="_blank" rel="noopener" href="'+r.photo+'">view</a>' : '<span class="gsub">—</span>'; }
     function num(r, f, cls) { return r ? '<td class="num '+cls+'">'+GLGC.fmt(r[f])+'</td>' : '<td class="num miss">—</td>'; }

@@ -62,7 +62,7 @@ window.GLGC = (function () {
         governor: String(v('governor') || '').trim(), overseer: String(v('overseer') || '').trim(), attendance: toNum(v('attendance')),
         offering: toNum(v('offering')), souls: toNum(v('souls')), service: String(v('service') || '').trim(),
         photo: String(v('photo') || '').split(',')[0].trim() };
-    }).filter(function (r) { return r.hub && (r.date || r.ts); });
+    }).filter(function (r) { return (r.hub || r.governor) && (r.date || r.ts); });
   }
   function fetchTab(tab) {
     return new Promise(function (resolve, reject) {
@@ -92,8 +92,9 @@ window.GLGC = (function () {
         var hubTotal = 0;
         h.governors.forEach(function (g, gi) {
           var s = (i + 1) * 37 + w * 101 + gi * 13, base = 5 + Math.round(h.shepherds * 3 / h.governors.length);
-          if (rnd(s) > 0.2) { var a = Math.round(base * (0.7 + rnd(s + 1) * 0.6)); hubTotal += a;
-            out.rehearsal.push({ ts: d, date: d, hub: h.hub, governor: g, attendance: a, photo: '' }); }
+          var isPrimary = !HUBS.slice(0, i).some(function (x) { return x.governors.indexOf(g) !== -1; });
+          if (isPrimary && rnd(s) > 0.2) { var a = Math.round(base * (0.7 + rnd(s + 1) * 0.6)); hubTotal += a;
+            out.rehearsal.push({ ts: d, date: d, hub: '', governor: g, attendance: a, photo: '' }); }
           if (rnd(s + 3) > 0.45) { var m = 1 + Math.round(base * rnd(s + 5) * 0.4);
             for (var q = 0; q < m; q++) out.outreach.push({ ts: d, date: d, hub: h.hub, governor: g,
               service: ['JN','HGE','FLE'][Math.floor(rnd(s + 20 + q) * 3)], souls: 1 }); }
@@ -116,10 +117,14 @@ window.GLGC = (function () {
     var weeks = {}, per = { rehearsal: {}, sunday: {} }, ovr = {}, out = {}, gov = {}, hubGov = {}, svc = {};
     function wk(r) { var sat = weekendSaturday(r.date || r.ts), key = sat.getTime(); weeks[key] = sat; return key; }
     function newer(r, prev) { return !prev || ((r.ts || 0) >= (prev.ts || 0)); }
+    // The Rehearsal form has no Hub Center question: a governor's rehearsal counts under their PRIMARY hub
+    // (the first hub they are listed under in roster.js).
+    var primary = {}; HUBS.forEach(function (h) { h.governors.forEach(function (g) { if (!primary[g]) primary[g] = h; }); });
 
     ['rehearsal', 'sunday'].forEach(function (type) {
       (raw[type] || []).forEach(function (r) {
-        var key = wk(r), a = per[type][key] || (per[type][key] = {}), b = a[r.hub] || (a[r.hub] = {}), g = r.governor || 'Unknown';
+        var g = r.governor || 'Unknown', hub = (type === 'rehearsal' && primary[g]) ? primary[g].hub : (r.hub || (primary[g] ? primary[g].hub : 'No hub center'));
+        var key = wk(r), a = per[type][key] || (per[type][key] = {}), b = a[hub] || (a[hub] = {});
         if (newer(r, b[g])) b[g] = r;
       });
     });
@@ -153,8 +158,11 @@ window.GLGC = (function () {
     }
 
     // every (hub, governor) pair that is expected to report
-    var pairs = []; HUBS.forEach(function (h) { h.governors.forEach(function (g) { pairs.push({ hub: h.hub, short: h.short, name: g }); }); });
-    function pairDefaulters(type, key) { return pairs.filter(function (p) { return !govGet(type, key, p.hub, p.name); }); }
+    var pairs = []; HUBS.forEach(function (h) { h.governors.forEach(function (g) {
+      pairs.push({ hub: h.hub, short: h.short, name: g, primary: primary[g] === h, primaryShort: primary[g].short }); }); });
+    // rehearsal is expected ONCE per governor (under the primary hub); Sunday once per hub-governor pair
+    function expected(type) { return type === 'rehearsal' ? pairs.filter(function (p) { return p.primary; }) : pairs; }
+    function pairDefaulters(type, key) { return expected(type).filter(function (p) { return !govGet(type, key, p.hub, p.name); }); }
 
     // governors (unique), each with the hubs they serve
     var govList = [], seen = {};
@@ -167,7 +175,7 @@ window.GLGC = (function () {
     function govSouls(key, g) { return (gov[key] || {})[g] || 0; }               // a governor, all their hubs
     function hubGovSouls(key, hub, g) { return ((hubGov[key] || {})[hub] || {})[g] || 0; } // a governor in one hub
     function govDefaulters(key) { return govList.filter(function (g) { return !govSouls(key, g.name); }); }
-    return { sample: !!isSample, weeks: weekList, hubs: HUBS, governors: govList, pairs: pairs, get: get, govGet: govGet,
+    return { sample: !!isSample, weeks: weekList, hubs: HUBS, governors: govList, pairs: pairs, expected: expected, get: get, govGet: govGet,
              defaulters: defaulters, pairDefaulters: pairDefaulters, total: total, serviceSouls: serviceSouls,
              govSouls: govSouls, hubGovSouls: hubGovSouls, govDefaulters: govDefaulters };
   }
