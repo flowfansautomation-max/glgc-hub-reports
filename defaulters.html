@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GLGC Hub Reports — Defaulters</title>
+  <link rel="stylesheet" href="style.css?v=12">
+  <script src="config.js?v=12"></script><script src="roster.js?v=12"></script><script src="data.js?v=12"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top"><div class="nav">
+      <a href="index.html">Weekly Summary</a>
+      <a href="defaulters.html" class="active">Defaulters</a>
+      <a href="hub.html">Per Hub</a>
+      <a href="trends.html">Trends</a>
+    </div></div>
+    <div class="title">Defaulters</div>
+    <div class="sub">Who did not report</div>
+    <div class="controls"><label>Weekend<select id="week"></select></label></div>
+    <div id="status"></div>
+
+    <div class="kpis four" id="kpis"></div>
+    <div class="defs four" id="defs"></div>
+  </div>
+
+<script>
+GLGC.load(function (M) {
+  GLGC.banner(M);
+  var sel = document.getElementById('week');
+  if (!M.weeks.length) { document.getElementById('status').innerHTML = '<div class="empty">No reports submitted yet.</div>'; return; }
+  sel.innerHTML = M.weeks.slice().reverse().map(function (w) { return '<option value="'+w.key+'">WK '+w.wk+' · '+w.label+'</option>'; }).join('');
+  sel.onchange = render; render();
+
+  function render() {
+    var k = +sel.value, n = M.hubs.length, np = M.pairs.length, nr = M.expected('rehearsal').length, ng = M.governors.length;
+    var dReh = M.pairDefaulters('rehearsal', k), dSun = M.pairDefaulters('sunday', k), dOut = M.govDefaulters(k), dOvr = M.defaulters('overseer', k);
+
+    var kp = [
+      { lab:'Rehearsal', val:dReh.length, note:'of '+nr+' governors did not report', c:'var(--blue)' },
+      { lab:'Sunday', val:dSun.length, note:'of '+np+' governor reports missing', c:'var(--sun)' },
+      { lab:'Outreach', val:dOut.length, note:'of '+ng+' governors submitted no souls', c:'var(--green)' },
+      { lab:'Overseers', val:dOvr.length, note:'of '+n+' hubs not reported', c:'var(--purple)' }
+    ];
+    document.getElementById('kpis').innerHTML = kp.map(function (x) {
+      return '<div class="kpi" style="--kc:'+x.c+'"><div class="lab">'+x.lab+' defaulters</div><div class="val">'+x.val+'</div><div class="note">'+x.note+'</div></div>'; }).join('');
+
+    function panel(title, list, okText, badText, line) {
+      if (!list.length) return '<div class="def ok"><h4>'+title+' · '+okText+' ✓</h4></div>';
+      return '<div class="def"><h4>'+title+' · '+list.length+' '+badText+'</h4><ul>'+list.map(line).join('')+'</ul></div>';
+    }
+    function pairLine(p) { return '<li>'+p.name+' <span class="gov">— '+p.short+'</span></li>'; }
+    document.getElementById('defs').innerHTML =
+      panel('Rehearsal', dReh, 'every governor reported', 'governors not reported', function (p) { return '<li>'+p.name+'</li>'; }) +
+      panel('Sunday', dSun, 'every governor reported', 'governors not reported', pairLine) +
+      panel('Outreach', dOut, 'every governor submitted souls', 'governors with no souls',
+            function (g) { return '<li>'+g.name+(g.hubs.length ? ' <span class="gov">— '+g.hubs.join(', ')+'</span>' : '')+'</li>'; }) +
+      panel('Overseers', dOvr, 'every overseer reported', 'hubs not reported',
+            function (h) { return '<li>'+h.overseer+' <span class="gov">— '+h.short+'</span></li>'; });
+  }
+}, GLGC.fail);
+</script>
+</body>
+</html>

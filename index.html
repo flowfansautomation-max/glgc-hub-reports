@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Weekly Summary</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=11">
-  <script src="config.js?v=11"></script><script src="roster.js?v=11"></script><script src="data.js?v=11"></script>
+  <link rel="stylesheet" href="style.css?v=12">
+  <script src="config.js?v=12"></script><script src="roster.js?v=12"></script><script src="data.js?v=12"></script>
 </head>
 <body>
   <div class="wrap">
     <div class="top"><div class="nav">
       <a href="index.html" class="active">Weekly Summary</a>
+      <a href="defaulters.html">Defaulters</a>
       <a href="hub.html">Per Hub</a>
       <a href="trends.html">Trends</a>
     </div></div>
@@ -21,9 +22,6 @@
     <div id="status"></div>
 
     <div class="kpis" id="kpis"></div>
-
-    <div class="section-label">🚨 Defaulters — who did not report</div>
-    <div class="defs four" id="defs"></div>
 
     <div class="section-label">📊 Attendance — by hub</div>
     <div class="legend">
@@ -94,19 +92,6 @@ GLGC.load(function (M) {
     ];
     document.getElementById('kpis').innerHTML = kp.map(function (x) {
       return '<div class="kpi" style="--kc:'+x.c+'"><div class="lab">'+x.lab+'</div><div class="val">'+x.val+'</div><div class="note">'+x.note+'</div></div>'; }).join('');
-
-    function panel(title, list, okText, badText, line) {
-      if (!list.length) return '<div class="def ok"><h4>'+title+' · '+okText+' ✓</h4></div>';
-      return '<div class="def"><h4>'+title+' · '+list.length+' '+badText+'</h4><ul>'+list.map(line).join('')+'</ul></div>';
-    }
-    function pairLine(p) { return '<li>'+p.name+' <span class="gov">— '+p.short+'</span></li>'; }
-    document.getElementById('defs').innerHTML =
-      panel('Rehearsal', dReh, 'every governor reported', 'governors not reported', function (p) { return '<li>'+p.name+'</li>'; }) +
-      panel('Sunday', dSun, 'every governor reported', 'governors not reported', pairLine) +
-      panel('Outreach', dOut, 'every governor submitted souls', 'governors with no souls',
-            function (g) { return '<li>'+g.name+(g.hubs.length ? ' <span class="gov">— '+g.hubs.join(', ')+'</span>' : '')+'</li>'; }) +
-      panel('Overseers', dOvr, 'every overseer reported', 'hubs not reported',
-            function (h) { return '<li>'+h.overseer+' <span class="gov">— '+h.short+'</span></li>'; });
 
     bar('c1', M.hubs.map(function (h) { return h.short; }), [
       ds('Rehearsal', M.hubs.map(function (h) { return val('rehearsal',h,'attendance'); }), '#1f5fff'),
