@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Trends</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=12">
-  <script src="config.js?v=12"></script><script src="roster.js?v=12"></script><script src="data.js?v=12"></script>
+  <link rel="stylesheet" href="style.css?v=14">
+  <script src="config.js?v=14"></script><script src="roster.js?v=14"></script><script src="data.js?v=14"></script>
 </head>
 <body>
   <div class="wrap">
@@ -20,18 +20,18 @@
     <div class="sub">Every weekend so far, all 10 hub centers added together</div>
     <div id="status"></div>
 
-    <div class="section-label">📊 Rehearsal vs Sunday attendance</div>
-    <div class="legend"><span><i class="sw" style="background:var(--blue)"></i> Rehearsal (governors)</span><span><i class="sw" style="background:var(--purple)"></i> Hub attendance (overseers)</span><span><i class="sw" style="background:var(--sun)"></i> Sunday (governors)</span></div>
+    <div class="section-label">🎤 Rehearsal — hub center attendance &amp; offering</div>
+    <div class="legend"><span><i class="sw" style="background:var(--blue)"></i> Hub center attendance</span><span><i class="sw" style="background:var(--red)"></i> Offering (GHS, right axis)</span></div>
     <div class="chartscroll"><div class="chartinner"><canvas id="c1"></canvas></div></div>
-
-    <div class="section-label">💰 Offering (GHS) — reported by overseers</div>
-    <div class="chartscroll"><div class="chartinner"><canvas id="c2"></canvas></div></div>
 
     <div class="section-label">🌍 Outreach — souls won</div>
     <div class="chartscroll"><div class="chartinner"><canvas id="c3"></canvas></div></div>
 
     <div class="section-label">🏆 Souls won per governor — all weekends so far</div>
     <div class="chartscroll"><div class="chartinner" style="height:520px"><canvas id="c5"></canvas></div></div>
+
+    <div class="section-label">⛪ Sunday attendance</div>
+    <div class="chartscroll"><div class="chartinner"><canvas id="c2"></canvas></div></div>
 
     <div class="section-label">✅ Reporting rate — % of expected reports received</div>
     <div class="legend"><span><i class="sw" style="background:var(--blue)"></i> Governors · rehearsal</span><span><i class="sw" style="background:var(--sun)"></i> Governors · Sunday</span><span><i class="sw" style="background:var(--purple)"></i> Overseers</span></div>
@@ -45,13 +45,14 @@
     <footer>Totals only include reports that were submitted · Rehearsal and Sunday show weekends reported out of all weekends so far</footer>
   </div>
 <script>
-function chart(id, labels, datasets, max) {
+function chart(id, labels, datasets, max, rightAxis) {
+  var y1 = rightAxis ? { y1:{ position:'right', beginAtZero:true, grace:'14%', ticks:{color:'#f2938b'}, grid:{drawOnChartArea:false}, title:{display:true,text:'GHS',color:'#f2938b'} } } : {};
   new Chart(document.getElementById(id), { type:'bar', plugins:[GLGC.valueLabels], data:{ labels:labels, datasets:datasets },
     options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} },
-      scales:{ x:{ ticks:{color:'#ddd',font:{size:11}}, grid:{color:'#1a1a1a'} },
-               y:{ beginAtZero:true, grace:'14%', suggestedMax:max, ticks:{color:'#ddd',precision:0}, grid:{color:'#1e1e1e'} } } } });
+      scales:Object.assign({ x:{ ticks:{color:'#ddd',font:{size:11}}, grid:{color:'#1a1a1a'} },
+               y:{ beginAtZero:true, grace:'14%', suggestedMax:max, ticks:{color:'#ddd',precision:0}, grid:{color:'#1e1e1e'} } }, y1) } });
 }
-function ds(label, data, color) { return { label:label, data:data, backgroundColor:color, borderRadius:4, maxBarThickness:40 }; }
+function ds(label, data, color, axis) { return { label:label, data:data, backgroundColor:color, borderRadius:4, maxBarThickness:40, yAxisID:axis||'y' }; }
 
 GLGC.load(function (M) {
   GLGC.banner(M);
@@ -62,8 +63,8 @@ GLGC.load(function (M) {
   var np = M.pairs.length;
   function prate(t) { var e = M.expected(t).length; return W.map(function (w) { return Math.round(100 * (e - M.pairDefaulters(t, w.key).length) / e); }); }
   function orate() { return W.map(function (w) { return Math.round(100 * (n - M.defaulters('overseer', w.key).length) / n); }); }
-  chart('c1', labels, [ ds('Rehearsal', tot('rehearsal','attendance'), '#1f5fff'), ds('Overseers', tot('overseer','attendance'), '#a78bfa'), ds('Sunday', tot('sunday','attendance'), '#f5c518') ]);
-  chart('c2', labels, [ ds('Offering', tot('overseer','offering'), '#e6c878') ]);
+  chart('c1', labels, [ ds('Hub center attendance', tot('overseer','attendance'), '#1f5fff'), ds('Offering', tot('overseer','offering'), '#e2574c', 'y1') ], undefined, true);
+  chart('c2', labels, [ ds('Sunday', tot('sunday','attendance'), '#f5c518') ]);
   chart('c3', labels, [ ds('Souls won', W.map(function (w) { return M.soulsTotal(w.key); }), '#e2574c') ]);
   chart('c4', labels, [ ds('Rehearsal %', prate('rehearsal'), '#1f5fff'), ds('Sunday %', prate('sunday'), '#f5c518'), ds('Overseers %', orate(), '#a78bfa') ], 100);
 

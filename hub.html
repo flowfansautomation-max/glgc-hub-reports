@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Per Hub</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=12">
-  <script src="config.js?v=12"></script><script src="roster.js?v=12"></script><script src="data.js?v=12"></script>
+  <link rel="stylesheet" href="style.css?v=14">
+  <script src="config.js?v=14"></script><script src="roster.js?v=14"></script><script src="data.js?v=14"></script>
 </head>
 <body>
   <div class="wrap">
@@ -26,16 +26,16 @@
     <div class="hubhead"><div class="name" id="hname"></div><div class="meta" id="hmeta"></div></div>
     <div class="kpis" id="kpis"></div>
 
-    <div class="section-label">🎤 Rehearsal — attendance &amp; offering</div>
-    <div class="legend"><span><i class="sw" style="background:var(--blue)"></i> Rehearsal (governors' reports added up)</span><span><i class="sw" style="background:var(--purple)"></i> Hub attendance (overseer)</span><span><i class="sw" style="background:var(--red)"></i> Offering (GHS, overseer, right axis)</span></div>
+    <div class="section-label">🎤 Rehearsal — hub center attendance &amp; offering</div>
+    <div class="legend"><span><i class="sw" style="background:var(--blue)"></i> Hub center attendance</span><span><i class="sw" style="background:var(--red)"></i> Offering (GHS, right axis)</span></div>
     <div class="chartscroll"><div class="chartinner"><canvas id="c1"></canvas></div></div>
-
-    <div class="section-label">⛪ Sunday attendance</div>
-    <div class="chartscroll"><div class="chartinner"><canvas id="c2"></canvas></div></div>
 
     <div class="section-label">🌍 Outreach — souls won, by governor</div>
     <div class="legend" id="glegend"></div>
     <div class="chartscroll"><div class="chartinner"><canvas id="c3"></canvas></div></div>
+
+    <div class="section-label">⛪ Sunday attendance</div>
+    <div class="chartscroll"><div class="chartinner"><canvas id="c2"></canvas></div></div>
 
     <div class="section-label">👥 Governors in this hub — latest weekend shown</div>
     <div class="chartscroll"><table id="gtbl" class="ppt">
@@ -86,17 +86,17 @@ GLGC.load(function (M) {
     var os = col('outreach','souls');
 
     var kp = [
-      { lab:'Avg rehearsal attendance', val:avg(ra), note:'reported '+reported('rehearsal')+' of '+weeks.length+' weekends', c:'var(--blue)' },
-      { lab:'Total offering (GHS)', val:sum(ro), note:'overseer reported '+reported('overseer')+' of '+weeks.length+' weekends', c:'var(--gold)' },
-      { lab:'Avg Sunday attendance', val:avg(sa), note:'reported '+reported('sunday')+' of '+weeks.length+' weekends', c:'var(--sun)' },
-      { lab:'Weekends with souls', val:reported('outreach'), note:'of '+weeks.length+' weekends', c:'var(--green)' },
-      { lab:'Souls won', val:sum(os), note:'over the period shown', c:'var(--red)' },
-      { lab:'Best weekend (souls)', val:Math.max.apply(null, os.map(function (v) { return v || 0; }).concat([0])), note:'most souls in one weekend', c:'var(--purple)' }
+      { lab:'Avg hub center attendance', val:avg(oa), note:'rehearsal · overseer reported '+reported('overseer')+' of '+weeks.length+' weekends', c:'var(--blue)' },
+      { lab:'Total offering (GHS)', val:sum(ro), note:'rehearsal · over the period shown', c:'var(--red)' },
+      { lab:"Avg governors' rehearsal attendance", val:avg(ra), note:'reported '+reported('rehearsal')+' of '+weeks.length+' weekends', c:'var(--purple)' },
+      { lab:'Souls won', val:sum(os), note:'outreach · over the period shown', c:'var(--green)' },
+      { lab:'Best weekend (souls)', val:Math.max.apply(null, os.map(function (v) { return v || 0; }).concat([0])), note:'most souls in one weekend', c:'var(--green)' },
+      { lab:'Avg Sunday attendance', val:avg(sa), note:'reported '+reported('sunday')+' of '+weeks.length+' weekends', c:'var(--sun)' }
     ];
     document.getElementById('kpis').innerHTML = kp.map(function (x) {
       return '<div class="kpi" style="--kc:'+x.c+'"><div class="lab">'+x.lab+'</div><div class="val">'+GLGC.fmt(x.val)+'</div><div class="note">'+x.note+'</div></div>'; }).join('');
 
-    chart('c1', labels, [ ds('Rehearsal', ra, '#1f5fff'), ds('Overseer', oa, '#a78bfa'), ds('Offering', ro, '#e2574c', 'y1') ], true);
+    chart('c1', labels, [ ds('Hub center attendance', oa, '#1f5fff'), ds('Offering', ro, '#e2574c', 'y1') ], true);
     chart('c2', labels, [ ds('Sunday', sa, '#f5c518') ]);
     var GC = ['#e2574c','#35c27a','#a78bfa','#f5c518','#1f5fff'];
     chart('c3', labels, h.governors.map(function (g, i) {
