@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Trends</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=17">
-  <script src="config.js?v=17"></script><script src="roster.js?v=17"></script><script src="data.js?v=17"></script>
+  <link rel="stylesheet" href="style.css?v=18">
+  <script src="config.js?v=18"></script><script src="roster.js?v=18"></script><script src="data.js?v=18"></script>
 </head>
 <body>
   <div class="wrap">
@@ -34,10 +34,6 @@
     <div class="section-label">⛪ Sunday attendance</div>
     <div class="chartscroll"><div class="chartinner"><canvas id="c2"></canvas></div></div>
 
-    <div class="section-label">✅ Reporting rate — % of expected reports received</div>
-    <div class="legend"><span><i class="sw" style="background:var(--blue)"></i> Governors · rehearsal</span><span><i class="sw" style="background:var(--sun)"></i> Governors · Sunday</span><span><i class="sw" style="background:var(--purple)"></i> Overseers</span></div>
-    <div class="chartscroll"><div class="chartinner"><canvas id="c4"></canvas></div></div>
-
     <div class="section-label">🏅 Reporting league — governors, all weekends so far</div>
     <div class="chartscroll"><table id="tbl" class="ppt">
       <thead><tr><th class="num">#</th><th>Governor</th><th>Hub Center</th><th class="num">Rehearsal</th><th class="num">Sunday</th><th class="num">Missed</th></tr></thead>
@@ -61,13 +57,9 @@ GLGC.load(function (M) {
   var W = M.weeks, n = M.hubs.length;
   var labels = W.map(function (w) { return ['WK ' + w.wk, w.label.replace(/ \d{4}$/, '')]; });
   function tot(t, f) { return W.map(function (w) { return M.total(t, w.key, f); }); }
-  var np = M.pairs.length;
-  function prate(t) { var e = M.expected(t).length; return W.map(function (w) { return Math.round(100 * (e - M.pairDefaulters(t, w.key).length) / e); }); }
-  function orate() { return W.map(function (w) { return Math.round(100 * (n - M.defaulters('overseer', w.key).length) / n); }); }
   chart('c1', labels, [ ds('Hub center attendance', tot('overseer','attendance'), '#1f5fff'), ds('Offering', tot('overseer','offering'), '#e2574c', 'y1') ], undefined, true);
   chart('c2', labels, [ ds('Sunday', tot('sunday','attendance'), '#f5c518') ]);
   chart('c3', labels, [ ds('Souls won', W.map(function (w) { return M.soulsTotal(w.key); }), '#e2574c') ]);
-  chart('c4', labels, [ ds('Rehearsal %', prate('rehearsal'), '#1f5fff'), ds('Sunday %', prate('sunday'), '#f5c518'), ds('Overseers %', orate(), '#a78bfa') ], 100);
 
   var gs = M.governors.map(function (g) { return { name:g.name, n:W.reduce(function (s, w) { return s + M.govSouls(w.key, g.name); }, 0) }; })
     .sort(function (a, b) { return b.n - a.n; });
