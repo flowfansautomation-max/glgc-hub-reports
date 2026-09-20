@@ -5,16 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Weekly Summary</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=14">
-  <script src="config.js?v=14"></script><script src="roster.js?v=14"></script><script src="data.js?v=14"></script>
+  <link rel="stylesheet" href="style.css?v=15">
+  <script src="config.js?v=15"></script><script src="roster.js?v=15"></script><script src="data.js?v=15"></script>
 </head>
 <body>
   <div class="wrap">
     <div class="top"><div class="nav">
       <a href="index.html" class="active">Weekly Summary</a>
-      <a href="defaulters.html">Defaulters</a>
       <a href="hub.html">Per Hub</a>
+      <a href="outreach.html">Outreach</a>
       <a href="trends.html">Trends</a>
+      <a href="defaulters.html">Defaulters</a>
     </div></div>
     <div class="title">Hub Centers — Weekly Summary</div>
     <div class="sub">Rehearsal · Outreach · Sunday</div>
@@ -32,16 +33,6 @@
 
     <div class="section-label">🌍 Outreach — souls won by governor</div>
     <div class="chartscroll"><div class="chartinner wide xwide" style="height:420px"><canvas id="c2"></canvas></div></div>
-    <div class="chartscroll"><table id="gtbl" class="ppt">
-      <thead><tr><th class="num">#</th><th>Governor</th><th>Hub Center(s)</th><th class="num">Souls Won</th></tr></thead>
-      <tbody></tbody><tfoot></tfoot>
-    </table></div>
-
-    <div class="section-label">⛪ Souls won by service</div>
-    <div class="chartscroll"><table id="stbl" class="ppt small">
-      <thead><tr><th>Service</th><th class="num">Souls Won</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
 
     <div class="section-label">⛪ Sunday attendance — by hub center</div>
     <div class="chartscroll"><div class="chartinner wide"><canvas id="c3"></canvas></div></div>
@@ -101,15 +92,6 @@ GLGC.load(function (M) {
     bar('c4', M.pairs.map(function (p) { return M.pairs.filter(function (q) { return q.name === p.name; }).length > 1 ? p.name + ' · ' + p.short : p.name; }),
         [ ds('Sunday', M.pairs.map(function (p) { var r = M.govGet('sunday', k, p.hub, p.name); return r ? r.attendance : null; }), '#f5c518') ]);
     bar('c2', M.governors.map(function (g) { return g.name; }), [ ds('Souls won', M.governors.map(function (g) { return M.govSouls(k, g.name); }), '#e2574c') ]);
-
-    var gr = M.governors.map(function (g) { return { g:g, n:M.govSouls(k, g.name) }; }).sort(function (a, b) { return b.n - a.n; });
-    document.querySelector('#gtbl tbody').innerHTML = gr.map(function (x, i) {
-      return '<tr><td class="rank">'+(i+1)+'</td><td class="gname">'+x.g.name+'</td><td class="hubs">'+(x.g.hubs.join(', ') || '—')+'</td><td class="num'+(x.n ? '' : ' zero')+'">'+x.n+'</td></tr>'; }).join('');
-    document.querySelector('#gtbl tfoot').innerHTML = '<tr><td colspan="3"><b>Total souls won</b></td><td class="num">'+M.soulsTotal(k)+'</td></tr>';
-
-    var sv = M.serviceSouls(k), S = window.SERVICES || [], names = S.concat(Object.keys(sv).filter(function (x) { return S.indexOf(x) === -1; }));
-    document.querySelector('#stbl tbody').innerHTML = names.map(function (nm) {
-      var v = sv[nm] || 0; return '<tr><td class="gname">'+nm+'</td><td class="num'+(v ? '' : ' zero')+'">'+v+'</td></tr>'; }).join('');
 
     function cell(t, h, f) { var r = M.get(t, k, h.hub); return r ? '<td class="num">'+GLGC.fmt(r[f])+'</td>' : '<td class="num nr">not reported</td>'; }
     document.querySelector('#tbl tbody').innerHTML = M.hubs.map(function (h) {
