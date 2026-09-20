@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLGC Hub Reports — Per Hub</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=16">
-  <script src="config.js?v=16"></script><script src="roster.js?v=16"></script><script src="data.js?v=16"></script>
+  <link rel="stylesheet" href="style.css?v=17">
+  <script src="config.js?v=17"></script><script src="roster.js?v=17"></script><script src="data.js?v=17"></script>
 </head>
 <body>
   <div class="wrap">
@@ -58,7 +58,6 @@ function chart(id, labels, datasets, rightAxis) {
   if (charts[id]) charts[id].destroy();
   var scales = { x:{ ticks:{color:'#ddd',font:{size:11}}, grid:{color:'#1a1a1a'} },
                  y:{ beginAtZero:true, grace:'14%', ticks:{color:'#ddd',precision:0}, grid:{color:'#1e1e1e'}, title:{display:true,text:'People',color:'#888'} } };
-  if (datasets[0] && datasets[0].stack) { scales.x.stacked = true; scales.y.stacked = true; }
   if (rightAxis) scales.y1 = { position:'right', beginAtZero:true, grace:'14%', ticks:{color:'#f2938b'}, grid:{drawOnChartArea:false}, title:{display:true,text:'GHS',color:'#f2938b'} };
   charts[id] = new Chart(document.getElementById(id), { type:'bar', plugins:[GLGC.valueLabels], data:{ labels:labels, datasets:datasets },
     options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:scales } });
@@ -101,8 +100,8 @@ GLGC.load(function (M) {
     chart('c2', labels, [ ds('Sunday', sa, '#f5c518') ]);
     var GC = ['#e2574c','#35c27a','#a78bfa','#f5c518','#1f5fff'];
     chart('c3', labels, h.governors.map(function (g, i) {
-      var d = ds(g, weeks.map(function (w) { var v = M.hubGovSouls(w.key, h.hub, g); return v || null; }), GC[i % GC.length]);
-      d.stack = 'souls'; return d; }));
+      // side-by-side bars, one per governor (never stacked); a governor with no souls shows a 0
+      return ds(g, weeks.map(function (w) { return M.hubGovSouls(w.key, h.hub, g); }), GC[i % GC.length]); }));
     document.getElementById('glegend').innerHTML = h.governors.map(function (g, i) {
       var t = weeks.reduce(function (s, w) { return s + M.hubGovSouls(w.key, h.hub, g); }, 0);
       return '<span><i class="sw" style="background:'+GC[i % GC.length]+'"></i> '+g+' · '+t+'</span>'; }).join('');
