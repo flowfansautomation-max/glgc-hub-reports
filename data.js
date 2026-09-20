@@ -115,15 +115,27 @@ window.GLGC = (function () {
   // overseer           : one report per hub (attendance + offering) → latest per hub
   function build(raw, isSample) {
     var weeks = {}, per = { rehearsal: {}, sunday: {} }, ovr = {}, out = {}, gov = {}, hubGov = {}, svc = {};
-    function wk(r) { var sat = weekendSaturday(r.date || r.ts), key = sat.getTime(); weeks[key] = sat; return key; }
+    // Which weekend a report belongs to. The date the person picked is used, UNLESS it is more than
+    // 3 weeks away from when they actually submitted (a slip such as picking the wrong year):
+    // then the submission time is trusted instead.
+    function when(r) {
+      if (r.date && r.ts && Math.abs(r.date - r.ts) > 21 * 86400000) return r.ts;
+      return r.date || r.ts;
+    }
+    function wk(r) { var sat = weekendSaturday(when(r)), key = sat.getTime(); weeks[key] = sat; return key; }
     function newer(r, prev) { return !prev || ((r.ts || 0) >= (prev.ts || 0)); }
     // The Rehearsal form has no Hub Center question: a governor's rehearsal counts under their PRIMARY hub
     // (the first hub they are listed under in roster.js).
-    var primary = {}; HUBS.forEach(function (h) { h.governors.forEach(function (g) { if (!primary[g]) primary[g] = h; }); });
+    var primary = {}, govHubs = {}; HUBS.forEach(function (h) { h.governors.forEach(function (g) { if (!primary[g]) primary[g] = h; (govHubs[g] = govHubs[g] || []).push(h.hub); }); });
 
     ['rehearsal', 'sunday'].forEach(function (type) {
       (raw[type] || []).forEach(function (r) {
-        var g = r.governor || 'Unknown', hub = (type === 'rehearsal' && primary[g]) ? primary[g].hub : (r.hub || (primary[g] ? primary[g].hub : 'No hub center'));
+        // Hub: rehearsal always goes under the governor's primary hub. On Sunday the hub the governor
+        // picked is used ONLY if it is really one of their hubs; if they picked someone else's hub by
+        // mistake (e.g. "First Love" instead of "HGE FLC") the report goes under their own hub.
+        var g = r.governor || 'Unknown', own = govHubs[g] || [], hub;
+        if (type === 'rehearsal') hub = primary[g] ? primary[g].hub : (r.hub || 'No hub center');
+        else hub = own.indexOf(r.hub) !== -1 ? r.hub : (primary[g] ? primary[g].hub : (r.hub || 'No hub center'));
         var key = wk(r), a = per[type][key] || (per[type][key] = {}), b = a[hub] || (a[hub] = {});
         if (newer(r, b[g])) b[g] = r;
       });
